@@ -492,29 +492,60 @@ function setupMob(){
 // ═══════════════════ VIEWS HTML ═══════════════════
 const VIEWS=`
 <section id="view-dashboard" class="view active">
-  <div><p class="page-title">Dashboard Executivo</p><p class="page-sub">Dados em tempo real — SLC Agrícola</p></div>
+  <div><p class="page-title">Dashboard</p><p class="page-sub">Dados em tempo real — SLC Agrícola</p></div>
+
+  <!-- KPIs -->
   <div class="kpi-grid">
     <div class="kpi-card clickable" style="border-top-color:var(--yellow)" onclick="goProcessos('Em Andamento')">
-      <span class="kpi-label">📂 Em Aberto</span><span class="kpi-value" id="kpi-abertos">—</span><span class="kpi-sub">clique para filtrar</span>
+      <span class="kpi-label">📂 Processos em Aberto</span>
+      <span class="kpi-value" id="kpi-abertos">—</span>
+      <span class="kpi-sub">clique para ver → Em Andamento</span>
     </div>
     <div class="kpi-card clickable" style="border-top-color:var(--blue)" onclick="goProcessos('Concluído')">
-      <span class="kpi-label">✅ Concluídos</span><span class="kpi-value" id="kpi-concluidos">—</span><span class="kpi-sub">clique para filtrar</span>
+      <span class="kpi-label">✅ Processos Concluídos</span>
+      <span class="kpi-value" id="kpi-concluidos">—</span>
+      <span class="kpi-sub">clique para ver → Concluídos</span>
     </div>
     <div class="kpi-card" style="border-top-color:var(--accent)">
-      <span class="kpi-label">% Médio</span><span class="kpi-value" id="kpi-pct">—</span><span class="kpi-sub">processos em aberto</span>
+      <span class="kpi-label">% Médio (em aberto)</span>
+      <span class="kpi-value" id="kpi-pct">—</span>
+      <span class="kpi-sub">progresso médio geral</span>
     </div>
   </div>
+
+  <!-- Tempo médio total + Tempo médio por etapa -->
   <div class="two-col">
     <div class="card">
-      <span class="card-title">Tempo Médio Total</span>
+      <span class="card-title">Tempo Médio Total do Processo</span>
       <div style="display:flex;align-items:flex-end;gap:8px">
         <span id="kpi-tempo" style="color:var(--text);font-size:46px;font-weight:700;font-family:'Georgia',serif;line-height:1">—</span>
-        <span class="text-muted" style="padding-bottom:8px">dias</span>
+        <span class="text-muted" style="font-size:14px;padding-bottom:8px">dias</span>
+      </div>
+      <p class="text-muted" style="font-size:12px;margin-top:8px">Da emissão até o lançamento em folha</p>
+    </div>
+    <div class="card">
+      <span class="card-title">Tempo Médio por Etapa</span>
+      <div style="display:flex;flex-direction:column;gap:10px" id="etapa-media-list">
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--dim);font-size:13px">Investigação</span><span style="color:var(--text);font-size:13px;font-weight:600">—</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--dim);font-size:13px">Advertência</span><span style="color:var(--text);font-size:13px;font-weight:600">—</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--dim);font-size:13px">Orçamento</span><span style="color:var(--text);font-size:13px;font-weight:600">—</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--dim);font-size:13px">RH</span><span style="color:var(--text);font-size:13px;font-weight:600">—</span></div>
       </div>
     </div>
-    <div class="card"><span class="card-title">Status dos Processos</span><div id="status-legend"></div><div style="display:flex;gap:6px;margin-top:12px" id="status-strip"></div></div>
   </div>
-  <div class="card"><span class="card-title">🏆 Ranking de Coordenadores</span><div id="dash-ranking"></div></div>
+
+  <!-- Status dos Processos (cards clicáveis) -->
+  <div class="card">
+    <span class="card-title">Status dos Processos</span>
+    <div id="status-legend"></div>
+    <div style="display:flex;gap:6px;margin-top:14px" id="status-strip"></div>
+  </div>
+
+  <!-- Ranking -->
+  <div class="card">
+    <span class="card-title">🏆 Ranking de Coordenadores</span>
+    <div id="dash-ranking"></div>
+  </div>
 </section>
 
 <section id="view-processos" class="view">
@@ -728,6 +759,22 @@ function initDashboard(){
   document.getElementById("kpi-concluidos").textContent=concluidos.length;
   document.getElementById("kpi-pct").textContent=avgPct+"%";
   document.getElementById("kpi-tempo").textContent=avgT;
+
+  // Tempo médio por etapa (calculado das raid_etapas concluídas)
+  const etapaNomes=["Anexo de RAID","Investigação","Advertência","Orçamento","Lançamento RH"];
+  const etapaMedias=etapaNomes.map((nome,i)=>{
+    const tempos=DB.raid_etapas
+      .filter(e=>e.etapa_ordem===i+1&&e.inicio&&e.fim)
+      .map(e=>Math.round((new Date(e.fim)-new Date(e.inicio))/86400000));
+    const avg=tempos.length?(tempos.reduce((a,b)=>a+b,0)/tempos.length).toFixed(1):"—";
+    return {nome,avg};
+  });
+  const el=document.getElementById("etapa-media-list");
+  if(el) el.innerHTML=etapaMedias.map(e=>`
+    <div style="display:flex;justify-content:space-between">
+      <span style="color:var(--dim);font-size:13px">${e.nome}</span>
+      <span style="color:var(--text);font-size:13px;font-weight:600">${e.avg==="—"?e.avg:e.avg+" dias"}</span>
+    </div>`).join("");
 
   const qtOk=abertos.filter(r=>r.sla_status==="ok").length;
   const qtProx=abertos.filter(r=>r.sla_status==="proximo").length;
