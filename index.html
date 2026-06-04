@@ -111,8 +111,8 @@ select.input-field{appearance:none}
 .tl-dot-h{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;z-index:1;position:relative;border:2px solid}
 .tl-label-h{font-size:11px;font-weight:600;margin-top:8px;text-align:center}
 .tl-date-h{font-size:10px;color:var(--muted);margin-top:3px;text-align:center}
-.step-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:16px}
-.step-card{border-radius:10px;padding:16px 12px;text-align:center;border:1px solid var(--border);transition:all .2s}
+.step-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:16px}
+.step-card{border-radius:8px;padding:10px 6px;text-align:center;border:1px solid var(--border);transition:all .2s}
 .step-card.done{background:#22C55E15;border-color:var(--green)}
 .step-card.current{background:#EAB30815;border-color:var(--yellow)}
 .step-card.pending{background:var(--card)}
@@ -215,7 +215,7 @@ select.input-field{appearance:none}
     <button class="nav-btn active" onclick="deskNav('dashboard',this)"><span>⬛</span> Dashboard</button>
     <button class="nav-btn" onclick="deskNav('processos',this)"><span>📋</span> Processos</button>
     <button class="nav-btn" id="d-nav-tl" onclick="deskNav('timeline',this)"><span>⏱</span> Avançar Etapas</button>
-    <button class="nav-btn" onclick="deskNav('ranking',this)"><span>🏆</span> Ranking</button>
+    <button class="nav-btn" onclick="deskNav('ranking',this)"><span>📈</span> Indicadores</button>
     <button class="nav-btn" id="d-nav-et" onclick="deskNav('etapas',this)"><span>⚙️</span> Etapas</button>
     <button class="nav-btn" id="d-nav-cad" onclick="deskNav('cadastros',this)"><span>🗂</span> Cadastros</button>
     <button class="logout-btn" onclick="doLogout()">↩ Sair</button>
@@ -244,7 +244,7 @@ select.input-field{appearance:none}
       <button class="nav-btn" onclick="mobNav('dashboard')"><span>⬛</span> Dashboard</button>
       <button class="nav-btn" onclick="mobNav('processos')"><span>📋</span> Processos</button>
       <button class="nav-btn" id="m-nav-tl" onclick="mobNav('timeline')"><span>⏱</span> Avançar Etapas</button>
-      <button class="nav-btn" onclick="mobNav('ranking')"><span>🏆</span> Ranking</button>
+      <button class="nav-btn" onclick="mobNav('ranking')"><span>📈</span> Indicadores</button>
       <button class="nav-btn" id="m-nav-et" onclick="mobNav('etapas')"><span>⚙️</span> Etapas</button>
       <button class="nav-btn" id="m-nav-cad" onclick="mobNav('cadastros')"><span>🗂</span> Cadastros</button>
       <button class="logout-btn" style="margin:16px" onclick="doLogout()">↩ Sair</button>
@@ -255,7 +255,7 @@ select.input-field{appearance:none}
     <button class="mob-nav-item active" id="mb-dashboard" onclick="mobNav('dashboard')"><span>⬛</span>Dashboard</button>
     <button class="mob-nav-item" id="mb-processos" onclick="mobNav('processos')"><span>📋</span>Processos</button>
     <button class="mob-nav-item" id="mb-timeline" onclick="mobNav('timeline')"><span>⏱</span>Etapas</button>
-    <button class="mob-nav-item" id="mb-ranking" onclick="mobNav('ranking')"><span>🏆</span>Ranking</button>
+    <button class="mob-nav-item" id="mb-ranking" onclick="mobNav('ranking')"><span>📈</span>Indicadores</button>
     <button class="mob-nav-item" onclick="toggleDrawer()"><span>☰</span>Menu</button>
   </div>
 </div>
@@ -494,57 +494,64 @@ const VIEWS=`
 <section id="view-dashboard" class="view active">
   <div><p class="page-title">Dashboard</p><p class="page-sub">Dados em tempo real — SLC Agrícola</p></div>
 
-  <!-- KPIs -->
-  <div class="kpi-grid">
+  <!-- 4 KPIs em linha -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
     <div class="kpi-card clickable" style="border-top-color:var(--yellow)" onclick="goProcessos('Em Andamento')">
-      <span class="kpi-label">📂 Processos em Aberto</span>
+      <span class="kpi-label">📂 Em Aberto</span>
       <span class="kpi-value" id="kpi-abertos">—</span>
-      <span class="kpi-sub">clique para ver → Em Andamento</span>
+      <span class="kpi-sub">→ Em Andamento</span>
     </div>
     <div class="kpi-card clickable" style="border-top-color:var(--blue)" onclick="goProcessos('Concluído')">
-      <span class="kpi-label">✅ Processos Concluídos</span>
+      <span class="kpi-label">✅ Concluídos</span>
       <span class="kpi-value" id="kpi-concluidos">—</span>
-      <span class="kpi-sub">clique para ver → Concluídos</span>
+      <span class="kpi-sub">→ Concluídos</span>
     </div>
     <div class="kpi-card" style="border-top-color:var(--accent)">
-      <span class="kpi-label">% Médio (em aberto)</span>
+      <span class="kpi-label">% Médio (aberto)</span>
       <span class="kpi-value" id="kpi-pct">—</span>
       <span class="kpi-sub">progresso médio geral</span>
     </div>
+    <div class="kpi-card" style="border-top-color:var(--green)">
+      <span class="kpi-label">⏱ Tempo Médio Total</span>
+      <span class="kpi-value" id="kpi-tempo">—</span>
+      <span class="kpi-sub">dias (emissão → RH)</span>
+    </div>
   </div>
 
-  <!-- Tempo médio total + Tempo médio por etapa -->
-  <div class="two-col">
-    <div class="card">
-      <span class="card-title">Tempo Médio Total do Processo</span>
-      <div style="display:flex;align-items:flex-end;gap:8px">
-        <span id="kpi-tempo" style="color:var(--text);font-size:46px;font-weight:700;font-family:'Georgia',serif;line-height:1">—</span>
-        <span class="text-muted" style="font-size:14px;padding-bottom:8px">dias</span>
-      </div>
-      <p class="text-muted" style="font-size:12px;margin-top:8px">Da emissão até o lançamento em folha</p>
-    </div>
+  <!-- Tempo médio por etapa (25%) + Status dos Processos (75%) -->
+  <div style="display:grid;grid-template-columns:1fr 3fr;gap:14px">
     <div class="card">
       <span class="card-title">Tempo Médio por Etapa</span>
       <div style="display:flex;flex-direction:column;gap:10px" id="etapa-media-list">
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--dim);font-size:13px">Investigação</span><span style="color:var(--text);font-size:13px;font-weight:600">—</span></div>
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--dim);font-size:13px">Advertência</span><span style="color:var(--text);font-size:13px;font-weight:600">—</span></div>
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--dim);font-size:13px">Orçamento</span><span style="color:var(--text);font-size:13px;font-weight:600">—</span></div>
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--dim);font-size:13px">RH</span><span style="color:var(--text);font-size:13px;font-weight:600">—</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--dim);font-size:12px">Carregando…</span></div>
       </div>
+    </div>
+    <div class="card">
+      <span class="card-title">Status dos Processos</span>
+      <div id="status-legend"></div>
+      <div style="display:flex;gap:6px;margin-top:14px" id="status-strip"></div>
     </div>
   </div>
 
-  <!-- Status dos Processos (cards clicáveis) -->
-  <div class="card">
-    <span class="card-title">Status dos Processos</span>
-    <div id="status-legend"></div>
-    <div style="display:flex;gap:6px;margin-top:14px" id="status-strip"></div>
+  <!-- Ranking (esquerda) + Gráfico pizza por setor (direita) -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div class="card">
+      <span class="card-title">🏆 Ranking de Coordenadores</span>
+      <div id="dash-ranking"></div>
+    </div>
+    <div class="card">
+      <span class="card-title">📊 RAIDs por Setor</span>
+      <div style="position:relative;height:240px;display:flex;align-items:center;justify-content:center">
+        <canvas id="pizza-setor" style="max-height:240px"></canvas>
+      </div>
+      <div id="pizza-legenda" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;justify-content:center"></div>
+    </div>
   </div>
 
-  <!-- Ranking -->
+  <!-- Timeline de atualizações -->
   <div class="card">
-    <span class="card-title">🏆 Ranking de Coordenadores</span>
-    <div id="dash-ranking"></div>
+    <span class="card-title">📋 Linha do Tempo — Atualizações do Sistema</span>
+    <div id="dash-timeline" style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:0"></div>
   </div>
 </section>
 
@@ -582,27 +589,17 @@ const VIEWS=`
     <button class="btn-ghost btn-sm" onclick="limparFiltrosDropdown()" style="white-space:nowrap">✕ Limpar</button>
   </div>
   <div class="card" style="padding:0;overflow:hidden">
-    <div class="tbl-wrap">
-    <table class="tbl">
-      <colgroup>
-        <col style="width:10%">
-        <col class="hide-mob" style="width:14%">
-        <col class="hide-mob" style="width:10%">
-        <col class="hide-mob" style="width:12%">
-        <col class="hide-mob" style="width:11%">
-        <col class="hide-mob" style="width:9%">
-        <col style="width:14%">
-        <col style="width:12%">
-        <col style="width:8%">
-      </colgroup>
+    <div style="overflow-x:auto">
+    <table class="tbl" style="min-width:900px">
       <thead><tr>
-        <th>Nº RAID</th>
-        <th class="hide-mob">Fazenda</th>
+        <th style="white-space:nowrap">Nº RAID</th>
         <th class="hide-mob">Setor</th>
-        <th class="hide-mob">Colaborador</th>
-        <th class="hide-mob">Coordenador</th>
-        <th class="hide-mob">Abertura</th>
-        <th>Progresso</th><th>Etapa</th><th>Status</th>
+        <th class="hide-mob">Coordenador Etapa</th>
+        <th class="hide-mob">Coord. Responsável</th>
+        <th class="hide-mob" style="white-space:nowrap">Lançamento</th>
+        <th>Progresso</th>
+        <th>Etapa</th>
+        <th>Status</th>
       </tr></thead>
       <tbody id="proc-tbody"></tbody>
     </table>
@@ -624,7 +621,7 @@ const VIEWS=`
 </section>
 
 <section id="view-ranking" class="view">
-  <div><p class="page-title">Ranking de Coordenadores</p><p class="page-sub">Tempo contado a partir da liberação da etapa ao responsável</p></div>
+  <div><p class="page-title">📈 Indicadores</p><p class="page-sub">Métricas e gráficos de desempenho dos processos RAID</p></div>
   <div id="ranking-list"></div>
 </section>
 
@@ -730,6 +727,8 @@ async function initAll(){
     console.log("✅ renderTimelineSelector done");
 
     buildNotifications();
+  // Draw dashboard charts after DOM settles
+  setTimeout(()=>{ drawDashPizza(); renderDashTimeline(); },100);
 
   } catch(e){
     console.error("❌ initAll error:",e);
@@ -858,21 +857,25 @@ function renderTable(){
     const f=getFazenda(r.fazenda_id), c=getUserById(r.coordenador_id), p=pct(r);
     const ec=etapaConfig(r.etapa_atual-1);
     const slaC=r.status==="Concluído"?"#38BDF8":slaColor(r.sla_status);
-    const setorCell=r.setor?r.setor:'<span style="color:var(--border)">—</span>';
     const etapaLabel=r.status==="Concluído"?"Concluída":"Etapa "+r.etapa_atual+" — "+ec.nome;
     const slaText=r.status==="Em Andamento"?slaLabel(r.sla_status):"Concluído";
+    // Responsável pela etapa atual
+    const etapas=DB.raid_etapas.filter(e=>e.raid_id===r.id).sort((a,b)=>a.etapa_ordem-b.etapa_ordem);
+    const curEp=etapas.find(e=>e.etapa_ordem===r.etapa_atual);
+    const respEtapa=curEp?getUserById(curEp.responsavel_id):{nome:"—"};
+    // Data lançamento etapa 1
+    const ep1=etapas.find(e=>e.etapa_ordem===1);
     return "<tr>"+
       `<td style="white-space:nowrap"><a href="#" onclick="openRaidTimeline('${r.id}');return false">${r.numero_raid}</a></td>`+
-      `<td class="text-dim hide-mob">${f.nome}</td>`+
-      `<td class="text-dim hide-mob">${setorCell}</td>`+
-      `<td class="text-dim hide-mob">${r.colaborador_nome||"—"}</td>`+
-      `<td class="text-dim hide-mob">${c.nome}</td>`+
-      `<td class="text-muted hide-mob" style="white-space:nowrap">${fmtDate(r.data_abertura)}</td>`+
-      `<td style="min-width:100px"><div style="display:flex;align-items:center;gap:8px">${pbar(p,ec.cor||"#888")}<span class="text-main fw-600 fs-12" style="white-space:nowrap">${p}%</span></div></td>`+
-      `<td>${badge(etapaLabel,r.status==="Concluído"?"#38BDF8":ec.cor||"#888")}</td>`+
-      `<td><div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${slaC}"></div>${badge(slaText,slaC)}</div></td>`+
+      `<td class="text-dim hide-mob">${r.setor||"—"}</td>`+
+      `<td class="text-dim hide-mob" style="font-size:12px">${respEtapa.nome}</td>`+
+      `<td class="text-dim hide-mob" style="font-size:12px">${c.nome}</td>`+
+      `<td class="text-muted hide-mob" style="white-space:nowrap;font-size:12px">${fmtDate(ep1?.inicio)}</td>`+
+      `<td style="min-width:90px"><div style="display:flex;align-items:center;gap:6px">${pbar(p,ec.cor||"#888")}<span class="text-main fw-600" style="font-size:11px;white-space:nowrap">${p}%</span></div></td>`+
+      `<td style="font-size:12px">${badge(etapaLabel,r.status==="Concluído"?"#38BDF8":ec.cor||"#888")}</td>`+
+      `<td><div style="display:flex;align-items:center;gap:5px"><div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${slaC}"></div>${badge(slaText,slaC)}</div></td>`+
       "</tr>";
-  }).join("")||`<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Nenhum processo encontrado para este filtro.</td></tr>`;
+  }).join("")||`<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Nenhum processo encontrado.</td></tr>`;
 }
 
 // ═══════════════════ TIMELINE ═══════════════════
@@ -1242,19 +1245,98 @@ function filtrarPorCoord(coordId){
   else mobNav("processos");
 }
 function renderRanking(){
-  const rk=calcRanking(), colors=["#22C55E","#22C55E88","#EAB308","#EF4444"];
-  document.getElementById("ranking-list").innerHTML=rk.map((c,i)=>`
-    <div class="rank-item ${i===0?"gold":""}">
-      <span style="font-size:26px;width:32px;text-align:center">${medal(i)}</span>
-      <div style="flex:1"><p class="text-main fw-600 fs-13">${c.nome}</p>
-        <div style="display:flex;gap:18px;margin-top:6px;flex-wrap:wrap">
-          <span class="text-muted fs-12">⏱ <b class="text-main">${c.tempMedio} dias</b></span>
-          <span class="text-muted fs-12">📋 <b class="text-main">${c.processos}</b></span>
-          <span class="text-muted fs-12">✅ <b style="color:var(--green)">${c.taxa}%</b></span>
-        </div></div>
-      <div style="min-width:120px"><p class="text-muted" style="font-size:10px;margin-bottom:5px;text-align:right">Tempo médio</p>
-        ${pbar(Math.max(0,(5-parseFloat(c.tempMedio||5))/5*100),colors[i]||"#EF4444")}</div>
-    </div>`).join("")||`<p class="text-muted" style="text-align:center;padding:20px">Sem dados suficientes para ranking.</p>`;
+  const rk=calcRanking();
+  const colors=["#22C55E","#22C55E88","#EAB308","#EF4444"];
+  const abertos=DB.raids.filter(r=>r.status==="Em Andamento");
+  const concluidos=DB.raids.filter(r=>r.status==="Concluído");
+  const totalRaids=DB.raids.length;
+  const txConclusao=totalRaids?Math.round(concluidos.length/totalRaids*100):0;
+  const avgDias=concluidos.length?(concluidos.reduce((s,r)=>s+(r.dias_total||0),0)/concluidos.length).toFixed(1):0;
+
+  // SLA por etapa
+  const etapaSla=DB.etapas_config.map(ec=>{
+    const atrasados=abertos.filter(r=>{
+      if(r.etapa_atual!==ec.ordem) return false;
+      const ep=DB.raid_etapas.find(e=>e.raid_id===r.id&&e.etapa_ordem===ec.ordem);
+      if(!ep?.inicio) return false;
+      const dias=Math.floor((new Date()-new Date(ep.inicio))/86400000);
+      return dias>ec.sla_dias;
+    }).length;
+    return {nome:ec.nome,atrasados,sla:ec.sla_dias,cor:ec.cor};
+  });
+
+  document.getElementById("ranking-list").innerHTML=`
+    <!-- Indicadores gerais -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+      <div class="kpi-card" style="border-top-color:#22C55E"><span class="kpi-label">Taxa de Conclusão</span><span class="kpi-value" style="font-size:28px">${txConclusao}%</span><span class="kpi-sub">${concluidos.length} de ${totalRaids} processos</span></div>
+      <div class="kpi-card" style="border-top-color:#EAB308"><span class="kpi-label">Em Andamento</span><span class="kpi-value" style="font-size:28px">${abertos.length}</span><span class="kpi-sub">processos ativos</span></div>
+      <div class="kpi-card" style="border-top-color:#EF4444"><span class="kpi-label">Atrasados</span><span class="kpi-value" style="font-size:28px">${abertos.filter(r=>r.sla_status==="atrasado").length}</span><span class="kpi-sub">fora do prazo SLA</span></div>
+      <div class="kpi-card" style="border-top-color:#3B82F6"><span class="kpi-label">Tempo Médio</span><span class="kpi-value" style="font-size:28px">${avgDias}</span><span class="kpi-sub">dias por processo</span></div>
+    </div>
+
+    <!-- Gráficos lado a lado -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+      <!-- Gráfico de barras: SLA por etapa -->
+      <div class="card">
+        <span class="card-title">⏱ Atrasos por Etapa (processos em aberto)</span>
+        ${etapaSla.map(e=>`
+          <div style="margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span style="color:var(--dim);font-size:12px">${e.nome}</span>
+              <span style="color:${e.atrasados>0?"var(--red)":"var(--green)"};font-weight:600;font-size:12px">${e.atrasados} atrasado${e.atrasados!==1?"s":""}</span>
+            </div>
+            <div style="background:var(--border);border-radius:99px;height:8px;overflow:hidden">
+              <div style="height:100%;border-radius:99px;background:${e.cor};width:${Math.min(100,(e.atrasados/Math.max(1,abertos.length))*100*3)}%"></div>
+            </div>
+          </div>`).join("")}
+      </div>
+
+      <!-- Gráfico pizza: status -->
+      <div class="card">
+        <span class="card-title">🥧 Distribuição de Status</span>
+        <div style="position:relative;height:180px;display:flex;align-items:center;justify-content:center">
+          <canvas id="pizza-status-ind"></canvas>
+        </div>
+        <div id="pizza-status-ind-leg" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;justify-content:center"></div>
+      </div>
+    </div>
+
+    <!-- Ranking de coordenadores com barra -->
+    <div class="card" style="margin-bottom:20px">
+      <span class="card-title">🏆 Ranking de Coordenadores — Menor tempo médio por etapa</span>
+      ${rk.map((c,i)=>`
+        <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-top:${i>0?"1px solid var(--border)":"none"}">
+          <span style="font-size:22px;width:28px;text-align:center">${medal(i)}</span>
+          <div style="flex:1">
+            <p style="color:var(--text);font-weight:600;font-size:13px">
+              <a href="#" onclick="filtrarPorCoord('${c.id}');return false" style="color:var(--accent);text-decoration:underline;text-underline-offset:3px">${c.nome}</a>
+            </p>
+            <div style="display:flex;gap:18px;margin-top:6px;flex-wrap:wrap">
+              <span style="color:var(--muted);font-size:12px">⏱ <b style="color:var(--text)">${c.tempMedio} dias</b></span>
+              <span style="color:var(--muted);font-size:12px">📋 <b style="color:var(--text)">${c.processos}</b> processos</span>
+              <span style="color:var(--muted);font-size:12px">✅ <b style="color:#22C55E">${c.taxa}%</b> conclusão</span>
+            </div>
+          </div>
+          <div style="min-width:130px">
+            <p style="color:var(--muted);font-size:10px;margin-bottom:5px;text-align:right">Tempo médio</p>
+            ${pbar(Math.max(5,(5-parseFloat(c.tempMedio||5))/5*100),colors[i]||"#EF4444")}
+          </div>
+        </div>`).join("")}
+    </div>
+
+    <!-- Gráfico: processos por setor -->
+    <div class="card">
+      <span class="card-title">📊 Processos por Setor</span>
+      <div style="position:relative;height:200px;display:flex;align-items:center;justify-content:center">
+        <canvas id="bar-setor-ind"></canvas>
+      </div>
+    </div>`;
+
+  // Draw charts after DOM update
+  setTimeout(()=>{
+    drawPizzaStatus("pizza-status-ind","pizza-status-ind-leg");
+    drawBarSetor("bar-setor-ind");
+  },50);
 }
 
 // ═══════════════════ ETAPAS EDITOR ═══════════════════
@@ -1487,27 +1569,31 @@ function renderCadastros(){
         </div>`).join("")}
     </div>`;
     return;
-    ct.innerHTML=`<div class="top-row" style="margin-bottom:16px">
-        <p class="text-main fw-600">Colaboradores</p>
+  } else if(currentTab==="colaboradores"){
+    ct.innerHTML=`<div class="card" style="margin-top:0">
+      <div class="top-row" style="margin-bottom:14px">
+        <p class="text-main fw-600">Colaboradores Cadastrados</p>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn-primary btn-sm" onclick="modalColab()">+ Adicionar</button>
           <button class="btn-ghost btn-sm" onclick="exportColabXls()">⬇ Excel</button>
-          <label class="btn-ghost btn-sm" style="cursor:pointer">⬆ Importar<input type="file" accept=".csv,.xlsx,.xls" style="display:none" onchange="importColabXls(this)"/></label>
+          <label class="btn-ghost btn-sm" style="cursor:pointer;display:inline-flex;align-items:center">⬆ Importar<input type="file" accept=".csv" style="display:none" onchange="importColabXls(this)"/></label>
         </div>
       </div>
-      <p class="text-muted" style="font-size:11px;margin-bottom:12px">Para importar: baixe o Excel, preencha e reimporte. Colunas obrigatórias: nome, matricula, email.</p>
-      ${DB.colaboradores.map(c=>{
-        const cargo=DB.cargos.find(x=>x.id===c.cargo_id)||{nome:"—"};
-        const faz=DB.fazendas.find(x=>x.id===c.fazenda_id)||{nome:"—"};
-        const gestor=DB.usuarios.find(x=>x.id===c.gestor_id)||{nome:"—"};
-        return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--border);flex-wrap:wrap">
-          <div style="width:36px;height:36px;border-radius:50%;background:var(--accentLo);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700">${c.nome[0]}</div>
-          <div style="flex:1"><p class="text-main fw-600 fs-13">${c.nome} <span class="text-muted fs-12">· ${c.matricula}</span></p>
-            <p class="text-muted" style="font-size:11px;margin-top:2px">${cargo.nome} · ${faz.nome} · Gestor: ${gestor.nome}</p>
-          </div>
-          <button class="btn-sm" style="background:var(--surface);border:1px solid var(--border);color:var(--muted)" onclick="modalColab('${c.id}')">✏️</button>
-          <button class="btn-sm btn-danger" onclick="deleteColab('${c.id}')">🗑</button>
-        </div>`;}).join("")}`;
+      <p style="color:var(--muted);font-size:11px;margin-bottom:12px">Para importar: exporte o Excel, preencha novas linhas e reimporte. Colunas: nome, matricula, email.</p>
+      ${DB.colaboradores.length===0?'<p style="color:var(--muted);text-align:center;padding:20px">Nenhum colaborador cadastrado.</p>':
+        DB.colaboradores.map(c=>{
+          const cargo=DB.cargos.find(x=>x.id===c.cargo_id)||{nome:"—"};
+          const faz=DB.fazendas.find(x=>x.id===c.fazenda_id)||{nome:"—"};
+          const gestor=DB.usuarios.find(x=>x.id===c.gestor_id)||{nome:"—"};
+          return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--border);flex-wrap:wrap">
+            <div style="width:36px;height:36px;border-radius:50%;background:var(--accentLo);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">${c.nome[0]}</div>
+            <div style="flex:1"><p class="text-main fw-600 fs-13">${c.nome} <span class="text-muted fs-12">· ${c.matricula}</span></p>
+              <p class="text-muted" style="font-size:11px;margin-top:2px">${cargo.nome} · ${faz.nome} · Gestor: ${gestor.nome}</p>
+            </div>
+            <button class="btn-sm" style="background:var(--surface);border:1px solid var(--border);color:var(--muted)" onclick="modalColab('${c.id}')">✏️</button>
+            <button class="btn-sm btn-danger" onclick="deleteColab('${c.id}')">🗑</button>
+          </div>`;}).join("")}
+    </div>`;
   } else if(currentTab==="usuarios"){
     ct.innerHTML=`<div class="top-row" style="margin-bottom:16px"><p class="text-main fw-600">Usuários</p><button class="btn-primary btn-sm" onclick="modalUsuario()">+ Novo</button></div>
       ${DB.usuarios.map(u=>`<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--border);flex-wrap:wrap">
@@ -1627,9 +1713,9 @@ async function saveColab(id){
   showToast("Colaborador salvo ✅"); closeModal(); await loadAll(); renderCadastros();
 }
 async function deleteColab(id){
-  if(!confirm("Excluir este colaborador?"))return;
+  if(!confirm("Excluir este colaborador permanentemente?"))return;
   await dbDelete("colaboradores",id);
-  showToast("Excluído","error"); await loadAll(); renderCadastros();
+  showToast("Colaborador excluído","error"); closeModal(); await loadAll(); renderCadastros();
 }
 
 // USUÁRIO
@@ -1665,9 +1751,9 @@ async function saveUsuario(id){
 }
 async function deleteUsuario(id){
   if(id===currentUser?.id){alert("Não é possível excluir seu próprio usuário.");return;}
-  if(!confirm("Excluir este usuário?"))return;
-  await dbUpdate("usuarios",id,{ativo:false});
-  showToast("Usuário desativado","error"); await loadAll(); renderCadastros();
+  if(!confirm("Excluir este usuário permanentemente?"))return;
+  await dbDelete("usuarios",id);
+  showToast("Usuário excluído","error"); closeModal(); await loadAll(); renderCadastros();
 }
 
 // ═══════════════════ NOVA RAID ═══════════════════
@@ -1829,6 +1915,114 @@ function openModal(html){document.getElementById("modal-body").innerHTML=html;do
 function closeModal(){document.getElementById("modal").classList.remove("open");}
 document.getElementById("modal").addEventListener("click",function(e){if(e.target===this)closeModal();});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();if(e.key==="Enter"&&document.getElementById("login-screen").style.display!=="none")doLogin();});
+
+// ═══════════════════ CHART HELPERS (Canvas) ═══════════════════
+let pizzaCtx1=null, pizzaCtx2=null, barCtx=null;
+
+function drawPizza(canvasId, legendId, labels, values, colors){
+  const canvas=document.getElementById(canvasId); if(!canvas)return;
+  const ctx=canvas.getContext("2d");
+  const W=canvas.width=canvas.offsetWidth||220, H=canvas.height=220;
+  const cx=W/2, cy=H/2, r=Math.min(cx,cy)-10;
+  const total=values.reduce((a,b)=>a+b,0); if(!total)return;
+  let angle=-Math.PI/2;
+  ctx.clearRect(0,0,W,H);
+  values.forEach((v,i)=>{
+    const slice=(v/total)*Math.PI*2;
+    ctx.beginPath(); ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,angle,angle+slice);
+    ctx.closePath(); ctx.fillStyle=colors[i%colors.length]; ctx.fill();
+    // inner ring for donut look
+    ctx.beginPath(); ctx.arc(cx,cy,r*0.5,0,Math.PI*2); ctx.fillStyle="#1C2230"; ctx.fill();
+    angle+=slice;
+  });
+  // center text
+  ctx.fillStyle="#E2E8F0"; ctx.font="bold 18px 'Georgia',serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.fillText(total, cx, cy-8);
+  ctx.font="10px 'Segoe UI',sans-serif"; ctx.fillStyle="#8B9AB0";
+  ctx.fillText("total", cx, cy+10);
+  // legend
+  if(legendId){
+    const leg=document.getElementById(legendId); if(!leg)return;
+    leg.innerHTML=labels.map((l,i)=>`
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px">
+        <div style="width:10px;height:10px;border-radius:3px;background:${colors[i%colors.length]};flex-shrink:0"></div>
+        <span style="color:var(--muted)">${l}</span>
+        <span style="color:var(--text);font-weight:600">${values[i]}</span>
+      </div>`).join("");
+  }
+}
+
+function drawBarSetor(canvasId){
+  const canvas=document.getElementById(canvasId); if(!canvas)return;
+  const setorCounts={};
+  DB.raids.forEach(r=>{ if(r.setor) setorCounts[r.setor]=(setorCounts[r.setor]||0)+1; });
+  const labels=Object.keys(setorCounts); const values=labels.map(k=>setorCounts[k]);
+  if(!labels.length){ const ctx2=canvas.getContext("2d"); ctx2.fillStyle="#8B9AB0"; ctx2.font="13px 'Segoe UI'"; ctx2.textAlign="center"; ctx2.fillText("Sem dados de setor",canvas.width/2||110,60); return; }
+  const COLORS=["#3B82F6","#A78BFA","#FB923C","#38BDF8","#22C55E","#EAB308","#EF4444","#EC4899"];
+  const W=canvas.width=canvas.offsetWidth||400, H=canvas.height=200;
+  const ctx=canvas.getContext("2d"); ctx.clearRect(0,0,W,H);
+  const barW=Math.min(60,(W-40)/labels.length-10), gap=(W-40-barW*labels.length)/(labels.length+1);
+  const maxV=Math.max(...values); const scaleH=H-50;
+  labels.forEach((l,i)=>{
+    const x=40+gap*(i+1)+barW*i, bh=(values[i]/maxV)*scaleH, y=H-30-bh;
+    // bar with gradient feel
+    ctx.fillStyle=COLORS[i%COLORS.length]+"cc"; ctx.beginPath();
+    ctx.roundRect?ctx.roundRect(x,y,barW,bh,4):ctx.rect(x,y,barW,bh);
+    ctx.fill();
+    // value
+    ctx.fillStyle="#E2E8F0"; ctx.font="bold 12px 'Segoe UI'"; ctx.textAlign="center";
+    ctx.fillText(values[i],x+barW/2,y-5);
+    // label
+    ctx.fillStyle="#8B9AB0"; ctx.font="11px 'Segoe UI'";
+    ctx.fillText(l.length>8?l.slice(0,7)+"…":l, x+barW/2, H-10);
+  });
+}
+
+function drawPizzaStatus(canvasId, legendId){
+  const abertos=DB.raids.filter(r=>r.status==="Em Andamento");
+  const labels=["Dentro Prazo","Próximo","Atrasado","Concluído"];
+  const values=[
+    abertos.filter(r=>r.sla_status==="ok").length,
+    abertos.filter(r=>r.sla_status==="proximo").length,
+    abertos.filter(r=>r.sla_status==="atrasado").length,
+    DB.raids.filter(r=>r.status==="Concluído").length
+  ];
+  drawPizza(canvasId,legendId,labels,values,["#22C55E","#EAB308","#EF4444","#38BDF8"]);
+}
+
+function drawDashPizza(){
+  const setorCounts={};
+  DB.raids.forEach(r=>{ const s=r.setor||"Sem setor"; setorCounts[s]=(setorCounts[s]||0)+1; });
+  const labels=Object.keys(setorCounts), values=labels.map(k=>setorCounts[k]);
+  const COLORS=["#3B82F6","#A78BFA","#FB923C","#38BDF8","#22C55E","#EAB308","#EF4444","#EC4899","#14B8A6"];
+  drawPizza("pizza-setor","pizza-legenda",labels,values,COLORS);
+}
+
+function renderDashTimeline(){
+  const events=[];
+  DB.raid_etapas.filter(e=>e.fim).forEach(e=>{
+    const r=DB.raids.find(x=>x.id===e.raid_id)||{numero_raid:"—"};
+    const u=getUserById(e.responsavel_id);
+    const ec=DB.etapas_config.find(x=>x.ordem===e.etapa_ordem)||{nome:"—",cor:"#888"};
+    events.push({ts:new Date(e.fim),label:`${r.numero_raid} — ${ec.nome} concluída`,sub:`por ${u.nome}`,cor:ec.cor||"#888"});
+  });
+  DB.raids.forEach(r=>{
+    events.push({ts:new Date(r.created_at),label:`${r.numero_raid} — Processo aberto`,sub:`${r.colaborador_nome||"—"} · ${r.setor||""}`,cor:"#3B82F6"});
+  });
+  events.sort((a,b)=>b.ts-a.ts);
+  const el=document.getElementById("dash-timeline"); if(!el)return;
+  if(!events.length){el.innerHTML='<p style="color:var(--muted);text-align:center;padding:20px;font-size:13px">Nenhuma atualização registrada.</p>';return;}
+  el.innerHTML=events.slice(0,30).map((e,i)=>`
+    <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);align-items:flex-start">
+      <div style="width:8px;height:8px;border-radius:50%;background:${e.cor};flex-shrink:0;margin-top:5px"></div>
+      <div style="flex:1">
+        <p style="color:var(--text);font-size:13px;font-weight:600">${e.label}</p>
+        <p style="color:var(--muted);font-size:11px;margin-top:2px">${e.sub}</p>
+      </div>
+      <span style="color:var(--muted);font-size:11px;white-space:nowrap">${fmtDatetime(e.ts.toISOString())}</span>
+    </div>`).join("");
+}
 
 // ═══════════════════ NOTIFICATIONS ═══════════════════
 let notifList = [];
