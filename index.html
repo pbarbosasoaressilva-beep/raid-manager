@@ -111,12 +111,12 @@ select.input-field{appearance:none}
 .tl-dot-h{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;z-index:1;position:relative;border:2px solid}
 .tl-label-h{font-size:11px;font-weight:600;margin-top:8px;text-align:center}
 .tl-date-h{font-size:10px;color:var(--muted);margin-top:3px;text-align:center}
-.step-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:12px}
-.step-card{border-radius:7px;padding:8px 4px;text-align:center;border:1px solid var(--border);transition:all .2s;min-width:0}
-.step-card .step-icon{font-size:16px;margin-bottom:3px}
-.step-card .step-num{font-size:10px;font-weight:600;margin-bottom:1px}
-.step-card .step-name{font-size:9px;font-weight:600;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.step-card .step-sub{font-size:9px;color:var(--muted);margin-top:2px}
+.step-cards{display:flex;flex-direction:row;gap:4px;margin-top:12px;width:100%}
+.step-card{border-radius:7px;padding:7px 4px;text-align:center;border:1px solid var(--border);transition:all .2s;flex:1;min-width:0;overflow:hidden}
+.step-card .step-icon{font-size:14px;margin-bottom:2px;display:block}
+.step-card .step-num{font-size:10px;font-weight:600;margin-bottom:1px;display:block}
+.step-card .step-name{font-size:9px;font-weight:600;line-height:1.2;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px}
+.step-card .step-sub{font-size:8px;color:var(--muted);margin-top:1px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .step-card.done{background:#22C55E15;border-color:var(--green)}
 .step-card.current{background:#EAB30815;border-color:var(--yellow)}
 .step-card.pending{background:var(--card)}
@@ -925,8 +925,9 @@ function renderTimeline(){
           ${badge(r.numero_raid,"#3B82F6")} ${badge(f.nome,"#8B9AB0")}
           ${badge(r.status,r.status==="Concluído"?"#38BDF8":"#EAB308")} ${badge(p+"%","#22C55E")}
         </div>
-        <p class="text-muted fs-12">Colaborador: <b class="text-main">${r.colaborador_nome||"—"}</b> · Coordenador: <b class="text-main">${c.nome}</b></p>
+        <p class="text-muted fs-12">Colaborador: <b class="text-main">${r.colaborador_nome||"—"}</b> · Coord. Responsável: <b class="text-main">${c.nome}</b></p>
         <p class="text-muted fs-12" style="margin-top:3px">Ocorrência: ${fmtDate(r.data_ocorrencia)} · Abertura: ${fmtDate(r.data_abertura)}</p>
+        <p class="text-muted fs-12" style="margin-top:3px">Coord. da Etapa Atual: <b style="color:${etapaConfig(r.etapa_atual-1).cor||'var(--accent)'}">${(()=>{const ep=etapas.find(e=>e.etapa_ordem===r.etapa_atual);return ep?getUserById(ep.responsavel_id).nome:"—";})()}</b> &nbsp;·&nbsp; Etapa: <b class="text-main">${etapaConfig(r.etapa_atual-1).nome}</b></p>
       </div>
       ${isPrivileged()?`<button class="btn-primary btn-sm" onclick="openAdminPanel('${r.id}')">🔧 Painel Admin</button>`:""}
     </div>`;
