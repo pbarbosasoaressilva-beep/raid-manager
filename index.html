@@ -1,331 +1,2145 @@
--- ══════════════════════════════════════════════════════════════════════════════
---  RAID MANAGER — SQL COMPLETO E DEFINITIVO
---  SLC Agrícola
---
---  ⚠️  Este script APAGA e RECRIA todas as tabelas do zero.
---  Execute no SQL Editor do Supabase — projeto: lkhggvxyrderefwrsgrt
---  Selecione tudo (Ctrl+A) → Run ▶
--- ══════════════════════════════════════════════════════════════════════════════
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>RAID Manager — SLC Agrícola</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0D1117;--surface:#161B22;--card:#1C2230;--border:#2A3344;
+  --accent:#3B82F6;--accentLo:#1D3461;
+  --green:#22C55E;--yellow:#EAB308;--red:#EF4444;--blue:#38BDF8;
+  --muted:#8B9AB0;--text:#E2E8F0;--dim:#CBD5E1;
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
+button{cursor:pointer;font-family:inherit}
+a{color:var(--accent);text-decoration:none}
+
+/* LOADING */
+#loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px}
+#loading-screen .spin{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* LOGIN */
+#login-screen{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:9998;flex-direction:column;gap:16px}
+.login-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:40px;width:400px;max-width:calc(100vw - 32px)}
+.login-box h1{color:var(--text);font-size:22px;margin-bottom:6px}
+.login-box p.sub{color:var(--muted);font-size:13px;margin-bottom:24px}
+.login-mode-row{display:flex;gap:10px;margin-bottom:20px}
+.mode-btn{flex:1;padding:12px 8px;border-radius:10px;border:2px solid var(--border);background:var(--surface);color:var(--muted);font-size:13px;font-weight:600;transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:6px}
+.mode-btn span{font-size:24px}
+.mode-btn.selected{border-color:var(--accent);background:var(--accentLo);color:var(--accent)}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field label{color:var(--muted);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.field input,.field textarea,.field select{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;width:100%;font-family:inherit}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent)}
+.btn-full{width:100%;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:600;margin-top:8px}
+.login-error{color:var(--red);font-size:12px;text-align:left;margin-top:10px;display:none;background:#EF444415;border:1px solid #EF444444;border-radius:8px;padding:10px 12px;line-height:1.5;word-break:break-all}
+
+/* DESKTOP */
+#app-desktop{display:none;height:100vh;overflow:hidden;flex-direction:row}
+#sidebar-desk{width:230px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 0;gap:2px;overflow-y:auto;height:100vh}
+.brand{margin:0 16px 24px;background:var(--accentLo);color:var(--accent);border-radius:8px;padding:10px 14px;font-weight:700;font-size:14px}
+.user-chip{margin:0 16px 20px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px}
+.avatar-sm{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0}
+.uname{color:var(--text);font-size:12px;font-weight:600}
+.urole{color:var(--muted);font-size:11px}
+.nav-btn{display:flex;align-items:center;gap:12px;padding:10px 20px;background:transparent;color:var(--muted);border:none;border-right:2px solid transparent;text-align:left;font-size:13px;width:100%;transition:all .15s}
+.nav-btn.active,.nav-btn:hover{background:var(--accentLo);color:var(--accent);border-right-color:var(--accent);font-weight:600}
+.nav-btn.hidden{display:none!important}
+.logout-btn{margin:auto 16px 0;background:transparent;border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--muted);font-size:12px;width:calc(100% - 32px);cursor:pointer}
+#main-desk{flex:1;overflow-y:auto;padding:28px}
+
+/* MOBILE */
+#app-mobile{display:none;flex-direction:column;min-height:100vh}
+#mob-topbar{position:fixed;top:0;left:0;right:0;height:52px;background:var(--surface);border-bottom:1px solid var(--border);z-index:200;display:flex;align-items:center;padding:0 16px;gap:12px}
+.brand-mob{color:var(--accent);font-weight:700;font-size:15px;flex:1}
+#mob-menu-btn{background:transparent;border:none;color:var(--muted);font-size:22px;padding:4px}
+#mob-user-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+#mob-drawer{position:fixed;inset:0;z-index:300;display:none}
+#mob-drawer.open{display:block}
+#mob-drawer-backdrop{position:absolute;inset:0;background:#000a}
+#mob-drawer-panel{position:absolute;top:0;left:0;bottom:0;width:260px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 0;gap:2px;overflow-y:auto;transform:translateX(-100%);transition:transform .25s ease}
+#mob-drawer.open #mob-drawer-panel{transform:translateX(0)}
+#mob-bottomnav{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:200;padding:6px 0;display:flex}
+.mob-nav-item{display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;background:transparent;border:none;color:var(--muted);font-size:10px;padding:6px 4px}
+.mob-nav-item.active{color:var(--accent)}
+.mob-nav-item span:first-child{font-size:20px}
+#main-mob{padding:68px 14px 80px;min-height:100vh}
+
+/* SHARED */
+.view{display:none;flex-direction:column;gap:20px}
+.view.active{display:flex}
+.page-title{font-size:22px;font-weight:700;color:var(--text);margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px}
+.card-sm{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.card-title{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;display:block}
+.badge{display:inline-block;border-radius:99px;padding:2px 10px;font-size:11px;font-weight:600;white-space:nowrap;border:1px solid transparent}
+.pbar-wrap{background:var(--border);border-radius:99px;height:6px;overflow:hidden;flex:1;min-width:60px}
+.pbar-fill{height:100%;border-radius:99px}
+.top-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.btn-primary{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer}
+.btn-ghost{background:transparent;border:1px solid var(--border);border-radius:8px;padding:9px 16px;font-size:13px;color:var(--muted);cursor:pointer}
+.btn-sm{padding:6px 12px;font-size:12px;border-radius:7px;border:none;font-weight:600;cursor:pointer}
+.btn-danger{background:#EF444420;color:#EF4444;border:1px solid #EF444444!important}
+.input-field{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;width:100%;font-family:inherit}
+.input-field:focus{border-color:var(--accent)}
+select.input-field{appearance:none}
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 22px;border-top:3px solid var(--accent);transition:all .15s}
+.kpi-card.clickable{cursor:pointer}
+.kpi-card.clickable:hover{opacity:.85;transform:translateY(-1px)}
+.kpi-label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:4px}
+.kpi-value{color:var(--text);font-size:34px;font-weight:700;font-family:'Georgia',serif;display:block}
+.kpi-sub{color:var(--muted);font-size:12px;display:block;margin-top:4px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.filter-row{display:flex;gap:8px;flex-wrap:wrap}
+.filter-btn{padding:7px 16px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:13px;cursor:pointer}
+.filter-btn.active{border-color:var(--accent);background:var(--accentLo);color:var(--accent);font-weight:600}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{padding:11px 14px;text-align:left;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;background:var(--surface);white-space:nowrap}
+.tbl td{padding:13px 14px;border-top:1px solid var(--border)}
+.tbl tr:hover td{background:#ffffff05}
+.tbl a{color:var(--accent);font-weight:700;text-decoration:underline}
+.hide-mob{}
+.tl-h{display:flex;align-items:flex-start;overflow-x:auto;padding:20px 0}
+.tl-step{display:flex;flex-direction:column;align-items:center;position:relative;flex:1;min-width:130px}
+.tl-step:not(:last-child)::after{content:'';position:absolute;top:14px;left:50%;width:100%;height:2px;background:var(--border);z-index:0}
+.tl-step.done:not(:last-child)::after{background:var(--green)}
+.tl-dot-h{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;z-index:1;position:relative;border:2px solid}
+.tl-label-h{font-size:11px;font-weight:600;margin-top:8px;text-align:center}
+.tl-date-h{font-size:10px;color:var(--muted);margin-top:3px;text-align:center}
+.step-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:16px}
+.step-card{border-radius:8px;padding:10px 6px;text-align:center;border:1px solid var(--border);transition:all .2s}
+.step-card.done{background:#22C55E15;border-color:var(--green)}
+.step-card.current{background:#EAB30815;border-color:var(--yellow)}
+.step-card.pending{background:var(--card)}
+.step-card.clickable-step{cursor:pointer}
+.step-card.clickable-step:hover{filter:brightness(1.1)}
+.modal-overlay{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;z-index:1000}
+.modal-overlay.open{display:flex}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:28px;width:560px;max-width:calc(100vw - 24px);max-height:88vh;overflow-y:auto}
+.modal h3{color:var(--text);font-size:17px;font-weight:700;margin-bottom:16px}
+.modal-close{float:right;background:transparent;border:none;color:var(--muted);font-size:20px;cursor:pointer;margin-top:-4px}
+.rank-item{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 20px;display:flex;align-items:center;gap:16px;margin-bottom:8px}
+.rank-item.gold{border-color:var(--accent)}
+.tabs{display:flex;border-bottom:1px solid var(--border);overflow-x:auto}
+.tab-btn{padding:8px 18px;border:none;background:transparent;color:var(--muted);font-size:13px;border-bottom:2px solid transparent;transition:all .15s;margin-bottom:-1px;cursor:pointer;white-space:nowrap}
+.tab-btn.active{color:var(--accent);font-weight:600;border-bottom-color:var(--accent)}
+.stage-row{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:10px}
+.req-item{display:flex;align-items:center;gap:8px;background:var(--bg);border-radius:6px;padding:7px 10px;margin-top:6px;font-size:12px;color:var(--dim)}
+.req-item button{background:var(--red);color:#fff;border:none;border-radius:4px;padding:2px 7px;font-size:11px;margin-left:auto;cursor:pointer}
+.avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
+.step-info-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+.step-info-row:last-child{border-bottom:none}
+.download-btn{display:inline-flex;align-items:center;gap:6px;background:var(--accentLo);color:var(--accent);border:1px solid rgba(59,130,246,.3);border-radius:7px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none}
+.fw-600{font-weight:600}.fs-12{font-size:12px}.fs-13{font-size:13px}
+.mt-4{margin-top:4px}.mt-8{margin-top:8px}
+.text-muted{color:var(--muted)}.text-dim{color:var(--dim)}.text-main{color:var(--text)}
+/* NOTIFICAÇÕES */
+#notif-btn{position:relative;background:transparent;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px 8px;transition:color .15s}
+#notif-btn:hover{color:var(--text)}
+#notif-badge{position:absolute;top:0;right:0;background:var(--red);color:#fff;border-radius:99px;font-size:9px;font-weight:700;padding:1px 5px;min-width:16px;text-align:center;display:none}
+#notif-panel{position:fixed;top:56px;right:16px;width:340px;max-width:calc(100vw - 32px);background:var(--card);border:1px solid var(--border);border-radius:12px;z-index:500;display:none;box-shadow:0 8px 32px #000a;max-height:480px;overflow-y:auto}
+#notif-panel.open{display:block}
+.notif-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)}
+.notif-item{padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
+.notif-item:hover{background:var(--surface)}
+.notif-item:last-child{border-bottom:none}
+.notif-item.unread{border-left:3px solid var(--accent)}
+.notif-item.urgent{border-left:3px solid var(--red)}
+.notif-item.warn{border-left:3px solid var(--yellow)}
+.notif-title{color:var(--text);font-size:13px;font-weight:600;margin-bottom:3px}
+.notif-sub{color:var(--muted);font-size:11px}
+/* topbar right slot */
+#topbar-right{display:flex;align-items:center;gap:8px;margin-left:auto;padding-right:4px}
+
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:13px;z-index:2000;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+.toast.success{border-color:var(--green);color:var(--green)}
+.toast.error{border-color:var(--red);color:var(--red)}
+/* Table: no horizontal scroll, fit columns */
+.tbl-wrap{width:100%;overflow:hidden}
+.tbl{table-layout:fixed;width:100%}
+.tbl td,.tbl th{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbl td.wrap-cell{white-space:normal;word-break:break-word}
+/* Cadastros: no unnecessary scrollbars */
+#tab-content{overflow:visible}
+
+  .kpi-grid{grid-template-columns:1fr 1fr}.two-col{grid-template-columns:1fr}
+  .step-cards{grid-template-columns:repeat(3,1fr)}.hide-mob{display:none}
+  .rank-item{flex-wrap:wrap}
+}
+@media(max-width:400px){.kpi-grid{grid-template-columns:1fr}.step-cards{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading-screen">
+  <div class="spin"></div>
+  <p style="color:var(--muted);font-size:14px">Conectando ao banco de dados…</p>
+</div>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>🛡 RAID Manager</h1>
+    <p class="sub">SLC Agrícola — Sistema de Gestão de Processos RAID</p>
+    <div class="login-mode-row">
+      <button class="mode-btn selected" id="mode-desktop" onclick="selectMode('desktop')"><span>🖥️</span>Computador</button>
+      <button class="mode-btn" id="mode-mobile" onclick="selectMode('mobile')"><span>📱</span>Celular</button>
+    </div>
+    <div class="field"><label>E-mail</label><input type="email" id="login-email" placeholder="seu@email.com"/></div>
+    <div class="field"><label>Senha</label><input type="password" id="login-pwd" placeholder="••••••••"/></div>
+    <button class="btn-full" id="login-btn" onclick="doLogin()">Entrar</button>
+    <p class="login-error" id="login-err">E-mail ou senha inválidos.</p>
+  </div>
+</div>
+
+<!-- DESKTOP -->
+<div id="app-desktop">
+  <nav id="sidebar-desk">
+    <div class="brand" style="display:flex;align-items:center;justify-content:space-between">
+      <span>🛡 RAID Manager</span>
+      <button id="notif-btn" onclick="toggleNotif()" title="Notificações">
+        🔔<span id="notif-badge"></span>
+      </button>
+    </div>
+    <div class="user-chip">
+      <div class="avatar-sm" id="d-av"></div>
+      <div><div class="uname" id="d-name"></div><div class="urole" id="d-role"></div></div>
+    </div>
+    <button class="nav-btn active" onclick="deskNav('dashboard',this)"><span>⬛</span> Dashboard</button>
+    <button class="nav-btn" onclick="deskNav('processos',this)"><span>📋</span> Processos</button>
+    <button class="nav-btn" id="d-nav-tl" onclick="deskNav('timeline',this)"><span>⏱</span> Avançar Etapas</button>
+    <button class="nav-btn" onclick="deskNav('ranking',this)"><span>📈</span> Indicadores</button>
+    <button class="nav-btn" id="d-nav-et" onclick="deskNav('etapas',this)"><span>⚙️</span> Etapas</button>
+    <button class="nav-btn" id="d-nav-cad" onclick="deskNav('cadastros',this)"><span>🗂</span> Cadastros</button>
+    <button class="logout-btn" onclick="doLogout()">↩ Sair</button>
+  </nav>
+  <main id="main-desk"><div id="d-views"></div></main>
+</div>
+
+<!-- MOBILE -->
+<div id="app-mobile">
+  <div id="mob-topbar">
+    <button id="mob-menu-btn" onclick="toggleDrawer()">☰</button>
+    <span class="brand-mob">🛡 RAID Manager</span>
+    <button id="mob-notif-btn" onclick="toggleNotif()" style="background:transparent;border:none;color:var(--muted);font-size:20px;cursor:pointer;position:relative">
+      🔔<span id="mob-notif-badge" style="position:absolute;top:0;right:0;background:var(--red);color:#fff;border-radius:99px;font-size:9px;font-weight:700;padding:1px 5px;display:none"></span>
+    </button>
+    <div id="mob-user-dot"></div>
+  </div>
+  <div id="mob-drawer">
+    <div id="mob-drawer-backdrop" onclick="toggleDrawer()"></div>
+    <div id="mob-drawer-panel">
+      <div class="brand" style="margin:0 16px 16px">🛡 RAID Manager</div>
+      <div class="user-chip" style="margin:0 16px 16px">
+        <div class="avatar-sm" id="m-av"></div>
+        <div><div class="uname" id="m-name"></div><div class="urole" id="m-role"></div></div>
+      </div>
+      <button class="nav-btn" onclick="mobNav('dashboard')"><span>⬛</span> Dashboard</button>
+      <button class="nav-btn" onclick="mobNav('processos')"><span>📋</span> Processos</button>
+      <button class="nav-btn" id="m-nav-tl" onclick="mobNav('timeline')"><span>⏱</span> Avançar Etapas</button>
+      <button class="nav-btn" onclick="mobNav('ranking')"><span>📈</span> Indicadores</button>
+      <button class="nav-btn" id="m-nav-et" onclick="mobNav('etapas')"><span>⚙️</span> Etapas</button>
+      <button class="nav-btn" id="m-nav-cad" onclick="mobNav('cadastros')"><span>🗂</span> Cadastros</button>
+      <button class="logout-btn" style="margin:16px" onclick="doLogout()">↩ Sair</button>
+    </div>
+  </div>
+  <main id="main-mob"><div id="m-views"></div></main>
+  <div id="mob-bottomnav">
+    <button class="mob-nav-item active" id="mb-dashboard" onclick="mobNav('dashboard')"><span>⬛</span>Dashboard</button>
+    <button class="mob-nav-item" id="mb-processos" onclick="mobNav('processos')"><span>📋</span>Processos</button>
+    <button class="mob-nav-item" id="mb-timeline" onclick="mobNav('timeline')"><span>⏱</span>Etapas</button>
+    <button class="mob-nav-item" id="mb-ranking" onclick="mobNav('ranking')"><span>📈</span>Indicadores</button>
+    <button class="mob-nav-item" onclick="toggleDrawer()"><span>☰</span>Menu</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
+
+<!-- NOTIFICATION PANEL -->
+<div id="notif-panel">
+  <div class="notif-header">
+    <span style="color:var(--text);font-weight:700;font-size:14px">🔔 Notificações</span>
+    <button onclick="markAllRead()" style="background:transparent;border:none;color:var(--accent);font-size:12px;cursor:pointer">Marcar todas como lidas</button>
+  </div>
+  <div id="notif-list"><p style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Nenhuma notificação</p></div>
+</div>
+
+<script>
+// ═══════════════════ SUPABASE — DIRECT FETCH (bypass DataCloneError) ═══════
+const SUPA_URL = 'https://lkhggvxyrderefwrsgrt.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxraGdndnh5cmRlcmVmd3JzZ3J0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1NDkzOTgsImV4cCI6MjA5NjEyNTM5OH0.Y4hof2dHa5r6O-G1npeN9FwxpSL8YCE4uwjVna3ogjY';
+
+const HEADERS = {
+  'apikey': SUPA_KEY,
+  'Authorization': 'Bearer ' + SUPA_KEY,
+  'Content-Type': 'application/json',
+  'Prefer': 'return=representation'
+};
+
+// Generic REST helpers
+async function dbSelect(table, params=''){
+  const res = await fetch(`${SUPA_URL}/rest/v1/${table}?${params}`, {headers: HEADERS});
+  if(!res.ok){ const t=await res.text(); throw new Error(`${table}: ${res.status} ${t}`); }
+  return res.json();
+}
+async function dbInsert(table, body){
+  const res = await fetch(`${SUPA_URL}/rest/v1/${table}`, {method:'POST', headers: HEADERS, body: JSON.stringify(body)});
+  if(!res.ok){ const t=await res.text(); throw new Error(`INSERT ${table}: ${res.status} ${t}`); }
+  return res.json();
+}
+async function dbUpdate(table, id, body){
+  const res = await fetch(`${SUPA_URL}/rest/v1/${table}?id=eq.${id}`, {method:'PATCH', headers:{...HEADERS,'Prefer':'return=representation'}, body: JSON.stringify(body)});
+  if(!res.ok){ const t=await res.text(); throw new Error(`UPDATE ${table}: ${res.status} ${t}`); }
+  return res.json();
+}
+async function dbDelete(table, id){
+  const res = await fetch(`${SUPA_URL}/rest/v1/${table}?id=eq.${id}`, {method:'DELETE', headers: HEADERS});
+  if(!res.ok){ const t=await res.text(); throw new Error(`DELETE ${table}: ${res.status} ${t}`); }
+}
+async function dbUpsert(table, body, onConflict='id'){
+  const res = await fetch(`${SUPA_URL}/rest/v1/${table}?on_conflict=${onConflict}`, {
+    method:'POST', headers:{...HEADERS,'Prefer':'resolution=merge-duplicates,return=representation'},
+    body: JSON.stringify(body)
+  });
+  if(!res.ok){ const t=await res.text(); throw new Error(`UPSERT ${table}: ${res.status} ${t}`); }
+  return res.json();
+}
+
+// File upload to Supabase Storage via REST
+async function uploadFile(bucket, path, file){
+  const res = await fetch(`${SUPA_URL}/storage/v1/object/${bucket}/${path}`, {
+    method: 'POST',
+    headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': file.type||'application/pdf' },
+    body: file
+  });
+  if(!res.ok) return null;
+  return `${SUPA_URL}/storage/v1/object/public/${bucket}/${path}`;
+}
+
+// Keep sb as a thin stub so existing code that references sb doesn't break
+const sb = {
+  from: ()=>({ select:()=>null, insert:()=>null, update:()=>null, delete:()=>null }),
+  storage: { from: ()=>({ upload:()=>null, getPublicUrl:()=>({data:{publicUrl:null}}) }) }
+};
+
+// ═══════════════════ STATE ═══════════════════
+let currentUser=null, currentRaid=null, procFilter="Todos", currentTab="fazendas", appMode="desktop", loginMode="desktop";
+let currentEtapaTab="etapas";
+let DB = { usuarios:[], fazendas:[], cargos:[], setores:[], colaboradores:[], etapas_config:[], raids:[], raid_etapas:[], nova_raid_campos:[] };
+// nova_raid_campos: admin-configurable fields for the Nova RAID form
+// Default fields (persisted in localStorage since no DB table yet)
+const DEFAULT_NOVA_RAID_CAMPOS = [
+  {id:"num",    label:"Número da RAID",        type:"text",    req:true,  ordem:1},
+  {id:"ocorr",  label:"Data da Ocorrência",    type:"date",    req:true,  ordem:2},
+  {id:"faz",    label:"Fazenda",               type:"select",  req:true,  ordem:3},
+  {id:"setor",  label:"Setor",                 type:"select",  req:true,  ordem:4},
+  {id:"colab",  label:"Colaborador Envolvido", type:"select",  req:true,  ordem:5},
+  {id:"qssma",  label:"Coordenador Emitente",  type:"select",  req:true,  ordem:6},
+  {id:"coord",  label:"Coordenador Responsável",type:"select", req:true,  ordem:7},
+  {id:"manut",  label:"Resp. Manutenção",      type:"select",  req:true,  ordem:8},
+  {id:"rh",     label:"Responsável RH",        type:"select",  req:true,  ordem:9},
+  {id:"desc",   label:"Descrição da Ocorrência",type:"textarea",req:true, ordem:10},
+  {id:"file",   label:"Documento Inicial (PDF)",type:"file",   req:false, ordem:11},
+];
+function loadNovaRaidCampos(){
+  try{ const s=localStorage.getItem("nova_raid_campos"); DB.nova_raid_campos=s?JSON.parse(s):[...DEFAULT_NOVA_RAID_CAMPOS]; }
+  catch(e){ DB.nova_raid_campos=[...DEFAULT_NOVA_RAID_CAMPOS]; }
+}
+function saveNovaRaidCampos(){ localStorage.setItem("nova_raid_campos",JSON.stringify(DB.nova_raid_campos)); }
 
 
--- ─────────────────────────────────────────────────────────────────────────────
--- 0. LIMPEZA
--- ─────────────────────────────────────────────────────────────────────────────
-DROP TABLE IF EXISTS historico        CASCADE;
-DROP TABLE IF EXISTS raid_etapas      CASCADE;
-DROP TABLE IF EXISTS raids            CASCADE;
-DROP TABLE IF EXISTS etapas_config    CASCADE;
-DROP TABLE IF EXISTS colaboradores    CASCADE;
-DROP TABLE IF EXISTS cargos           CASCADE;
-DROP TABLE IF EXISTS setores          CASCADE;
-DROP TABLE IF EXISTS fazendas         CASCADE;
-DROP TABLE IF EXISTS usuarios         CASCADE;
+// ═══════════════════ HELPERS ═══════════════════
+const slaColor=s=>s==="ok"?"#22C55E":s==="proximo"?"#EAB308":s==="atrasado"?"#EF4444":"#38BDF8";
+const slaLabel=s=>s==="ok"?"Dentro do Prazo":s==="proximo"?"Próximo do Prazo":s==="atrasado"?"Atrasado":"Concluído";
+const medal=i=>["🥇","🥈","🥉"][i]||`${i+1}º`;
+const badge=(l,c)=>`<span class="badge" style="background:${c}22;color:${c};border-color:${c}44">${l}</span>`;
+const pbar=(p,c)=>`<div class="pbar-wrap"><div class="pbar-fill" style="width:${p}%;background:${c}"></div></div>`;
+const getUserById=id=>DB.usuarios.find(u=>u.id===id)||{nome:"—",perfil:"—",cor:"#888"};
+const getFazenda=id=>DB.fazendas.find(f=>f.id===id)||{nome:"—",codigo:"—"};
+const etapaConfig=i=>DB.etapas_config.find(e=>e.ordem===i+1)||{nome:"—",cor:"#888",responsavel:"—"};
+const isAdmin=()=>currentUser?.perfil==="Admin";
+const isPrivileged=()=>currentUser&&(currentUser.perfil==="Admin"||currentUser.perfil==="QSSMA");
+const pct=r=>r.status==="Concluído"?100:Math.round(((r.etapa_atual-1)/5)*100);
 
-DROP VIEW     IF EXISTS v_raids_resumo  CASCADE;
-DROP FUNCTION IF EXISTS set_updated_at  CASCADE;
+function fmtDate(dt){ if(!dt)return "—"; return new Date(dt).toLocaleDateString("pt-BR"); }
+function fmtDatetime(dt){ if(!dt)return "—"; const d=new Date(dt); return d.toLocaleDateString("pt-BR")+" às "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); }
+function duracao(ini,fim){
+  if(!ini)return "—";
+  const ms=(fim?new Date(fim):new Date())-new Date(ini);
+  const h=Math.round(ms/3600000);
+  return h<24?h+"h":Math.round(h/24)+" dias";
+}
+function label(txt){return `<label style="color:var(--muted);font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px;margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">${txt}</label>`;}
+function fl(id){ return `<div class="field" id="fw-${id}">`; }
+function showToast(msg, type="success"){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.className=`toast show ${type}`;
+  setTimeout(()=>t.className="toast",2800);
+}
 
--- ─────────────────────────────────────────────────────────────────────────────
--- 1. EXTENSÕES
--- ─────────────────────────────────────────────────────────────────────────────
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+// ═══════════════════ LOAD ALL DATA ═══════════════════
+function safeArr(data){ return Array.isArray(data)?data:[]; }
 
--- ─────────────────────────────────────────────────────────────────────────────
--- 2. FAZENDAS
--- ─────────────────────────────────────────────────────────────────────────────
-CREATE TABLE fazendas (
-  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  nome       TEXT NOT NULL,
-  codigo     TEXT NOT NULL UNIQUE,
-  municipio  TEXT,
-  estado     CHAR(2),
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+async function loadAll(){
+  console.log("📦 Fetching all tables via REST...");
+  const [usuarios, fazendas, cargos, setores, colaboradores, etapas_config, raids, raid_etapas] = await Promise.all([
+    dbSelect("usuarios",      "select=id,nome,email,senha_hash,perfil,cor,ativo&order=nome"),
+    dbSelect("fazendas",      "select=id,nome,codigo,municipio,estado&order=nome"),
+    dbSelect("cargos",        "select=id,nome,area,nivel&order=nome"),
+    dbSelect("setores",       "select=id,nome,descricao&order=nome"),
+    dbSelect("colaboradores", "select=id,nome,matricula,cargo_id,fazenda_id,email,gestor_id&order=nome"),
+    dbSelect("etapas_config", "select=id,ordem,nome,responsavel,sla_dias,cor,requisitos,campos&order=ordem"),
+    dbSelect("raids",         "select=id,numero_raid,fazenda_id,setor,colaborador_nome,coordenador_id,data_ocorrencia,data_abertura,status,etapa_atual,sla_status,dias_total,created_by,created_at,updated_at&order=created_at.desc"),
+    dbSelect("raid_etapas",   "select=id,raid_id,etapa_ordem,responsavel_id,inicio,fim,obs,anexo_nome,anexo_url,campos&order=etapa_ordem"),
+  ]);
+  DB.usuarios      = safeArr(usuarios);
+  DB.fazendas      = safeArr(fazendas);
+  DB.cargos        = safeArr(cargos);
+  DB.setores       = safeArr(setores);
+  DB.colaboradores = safeArr(colaboradores);
+  DB.etapas_config = safeArr(etapas_config);
+  DB.raids         = safeArr(raids);
+  DB.raid_etapas   = safeArr(raid_etapas);
+  loadNovaRaidCampos();
+  console.log("✅ loadAll done — raids:", DB.raids.length);
+}
 
-INSERT INTO fazendas (nome, codigo, municipio, estado) VALUES
-  ('Fazenda Boa Vista',   'FBV', 'Ribeirão Preto', 'SP'),
-  ('Fazenda Esperança',   'FES', 'Uberaba',        'MG'),
-  ('Fazenda Santa Clara', 'FSC', 'Campo Grande',   'MS'),
-  ('Fazenda Nova Era',    'FNE', 'Goiânia',        'GO');
+// ═══════════════════ LOGIN ═══════════════════
+function selectMode(m){
+  loginMode=m;
+  document.getElementById("mode-desktop").classList.toggle("selected",m==="desktop");
+  document.getElementById("mode-mobile").classList.toggle("selected",m==="mobile");
+}
 
--- ─────────────────────────────────────────────────────────────────────────────
--- 3. CARGOS
--- ─────────────────────────────────────────────────────────────────────────────
-CREATE TABLE cargos (
-  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  nome       TEXT NOT NULL,
-  area       TEXT,
-  nivel      TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+async function doLogin(){
+  const email=document.getElementById("login-email").value.trim();
+  const pwd=document.getElementById("login-pwd").value;
+  const btn=document.getElementById("login-btn");
+  const errEl=document.getElementById("login-err");
+  btn.textContent="Verificando…"; btn.disabled=true; errEl.style.display="none";
 
-INSERT INTO cargos (nome, area, nivel) VALUES
-  ('Coordenador de QSSMA',      'QSSMA',         'Coordenação'),
-  ('Coordenador de Campo',      'Operações',      'Coordenação'),
-  ('Gerente de Fazenda',        'Gestão',         'Gerência'),
-  ('Supervisor Operacional',    'Operações',      'Supervisão'),
-  ('Técnico de Manutenção',     'Manutenção',     'Técnico'),
-  ('Analista de RH',            'RH',             'Analista'),
-  ('Assistente Administrativo', 'Administrativo', 'Assistente');
+  // DIAGNÓSTICO — testa conexão e query passo a passo
+  try {
+    // Passo 1: conexão básica
+    const _ping = await dbSelect("usuarios", "select=id&limit=1").catch(e=>{ errEl.textContent="❌ Erro de conexão: "+e.message; errEl.style.display="block"; btn.textContent="Entrar"; btn.disabled=false; return null; });
+    if(!_ping) return;
 
--- ─────────────────────────────────────────────────────────────────────────────
--- 4. SETORES
--- ─────────────────────────────────────────────────────────────────────────────
-CREATE TABLE setores (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  nome        TEXT NOT NULL UNIQUE,
-  descricao   TEXT,
-  created_at  TIMESTAMPTZ DEFAULT NOW()
-);
+    // Passo 2: busca por e-mail
+    const byEmail = await dbSelect("usuarios", "select=id,nome,email,senha_hash,perfil,ativo,cor&email=eq."+encodeURIComponent(email));
+    if(!byEmail||byEmail.length===0){ errEl.textContent="❌ E-mail não encontrado no banco."; errEl.style.display="block"; btn.textContent="Entrar"; btn.disabled=false; return; }
 
-INSERT INTO setores (nome, descricao) VALUES
-  ('Plantio',       'Atividades de plantio e preparo do solo'),
-  ('Colheita',      'Atividades de colheita e pós-colheita'),
-  ('Manutenção',    'Manutenção de máquinas e equipamentos'),
-  ('Logística',     'Transporte e movimentação de cargas'),
-  ('Administrativo','Atividades administrativas e de escritório'),
-  ('Irrigação',     'Sistema de irrigação e recursos hídricos'),
-  ('Armazenagem',   'Silos, armazéns e estocagem');
+    const u=byEmail[0];
+    // Passo 3: verifica ativo
+    if(!u.ativo){ errEl.textContent="❌ Usuário encontrado mas está inativo (ativo=false)."; errEl.style.display="block"; btn.textContent="Entrar"; btn.disabled=false; return; }
 
--- ─────────────────────────────────────────────────────────────────────────────
--- 5. USUÁRIOS
--- ─────────────────────────────────────────────────────────────────────────────
-CREATE TABLE usuarios (
-  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  nome       TEXT NOT NULL,
-  email      TEXT NOT NULL UNIQUE,
-  senha_hash TEXT NOT NULL,
-  perfil     TEXT NOT NULL CHECK (perfil IN ('Admin','QSSMA','Coordenador','Manutenção','RH','Consulta')),
-  cor        TEXT DEFAULT '#8B9AB0',
-  ativo      BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+    // Passo 4: verifica senha
+    if(u.senha_hash!==pwd){ errEl.textContent=`❌ Senha incorreta. Valor no banco: "${u.senha_hash}" — você digitou: "${pwd}"`; errEl.style.display="block"; btn.textContent="Entrar"; btn.disabled=false; return; }
 
-INSERT INTO usuarios (nome, email, senha_hash, perfil, cor) VALUES
-  ('Paulo Soares',    'paulo.soares@slcagricola.com.br', '123456',   'Admin',       '#EF4444'),
-  ('Luísa Cardoso',  'luisa@slcagricola.com.br',        'qssma123', 'QSSMA',       '#A78BFA'),
-  ('João Silva',      'joao@slcagricola.com.br',         'coord123', 'Coordenador', '#3B82F6'),
-  ('Carlos Souza',    'carlos@slcagricola.com.br',       'coord123', 'Coordenador', '#38BDF8'),
-  ('Pedro Lima',      'pedro@slcagricola.com.br',        'coord123', 'Coordenador', '#22C55E'),
-  ('Ricardo Matos',   'ricardo@slcagricola.com.br',      'manut123', 'Manutenção',  '#FB923C'),
-  ('Sandra Oliveira', 'sandra@slcagricola.com.br',       'rh12345',  'RH',          '#22C55E');
+    // Login OK
+    currentUser=u; appMode=loginMode;
+    document.getElementById("login-screen").style.display="none";
+    if(appMode==="desktop"){ document.getElementById("app-desktop").style.display="flex"; setupDesk(); }
+    else { document.getElementById("app-mobile").style.display="flex"; setupMob(); }
+    buildViews(); initAll();
 
--- ─────────────────────────────────────────────────────────────────────────────
--- 6. COLABORADORES
--- ─────────────────────────────────────────────────────────────────────────────
-CREATE TABLE colaboradores (
-  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  nome       TEXT NOT NULL,
-  matricula  TEXT NOT NULL UNIQUE,
-  cargo_id   UUID REFERENCES cargos(id)     ON DELETE SET NULL,
-  fazenda_id UUID REFERENCES fazendas(id)   ON DELETE SET NULL,
-  email      TEXT,
-  gestor_id  UUID REFERENCES usuarios(id)   ON DELETE SET NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+  } catch(e) {
+    errEl.textContent="❌ Exceção JS: "+e.message;
+    errEl.style.display="block";
+  }
+  btn.textContent="Entrar"; btn.disabled=false;
+}
 
-INSERT INTO colaboradores (nome, matricula, email) VALUES
-  ('Marcos Ferreira', 'SLC001', 'marcos@slcagricola.com.br'),
-  ('Ana Paula',       'SLC002', 'ana@slcagricola.com.br'),
-  ('Roberto Lima',    'SLC003', 'roberto@slcagricola.com.br');
+function doLogout(){
+  currentUser=null; currentRaid=null;
+  document.getElementById("app-desktop").style.display="none";
+  document.getElementById("app-mobile").style.display="none";
+  document.getElementById("login-screen").style.display="flex";
+  document.getElementById("login-email").value="";
+  document.getElementById("login-pwd").value="";
+  document.getElementById("login-err").style.display="none";
+}
 
--- ─────────────────────────────────────────────────────────────────────────────
--- 7. CONFIGURAÇÃO DAS ETAPAS
--- ─────────────────────────────────────────────────────────────────────────────
-CREATE TABLE etapas_config (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  ordem       INT  NOT NULL UNIQUE,
-  nome        TEXT NOT NULL,
-  responsavel TEXT NOT NULL,
-  sla_dias    INT  DEFAULT 3,
-  cor         TEXT DEFAULT '#3B82F6',
-  requisitos  JSONB DEFAULT '[]',
-  campos      JSONB DEFAULT '[]'
-);
+// ═══════════════════ SETUP UI ═══════════════════
+function setupDesk(){
+  const u=currentUser;
+  document.getElementById("d-name").textContent=u.nome.split(" ").slice(0,2).join(" ");
+  document.getElementById("d-role").textContent=u.perfil;
+  const av=document.getElementById("d-av");
+  av.textContent=u.nome[0]; av.style.background=u.cor+"33"; av.style.color=u.cor;
+  document.getElementById("d-nav-cad").classList.toggle("hidden",!isAdmin());
+  document.getElementById("d-nav-et").classList.toggle("hidden",!isAdmin());
+}
+function setupMob(){
+  const u=currentUser;
+  const dot=document.getElementById("mob-user-dot");
+  dot.textContent=u.nome[0]; dot.style.background=u.cor+"33"; dot.style.color=u.cor;
+  document.getElementById("m-name").textContent=u.nome.split(" ")[0];
+  document.getElementById("m-role").textContent=u.perfil;
+  const av=document.getElementById("m-av");
+  av.textContent=u.nome[0]; av.style.background=u.cor+"33"; av.style.color=u.cor;
+  document.getElementById("m-nav-cad").classList.toggle("hidden",!isAdmin());
+  document.getElementById("m-nav-et").classList.toggle("hidden",!isAdmin());
+}
 
-INSERT INTO etapas_config (ordem, nome, responsavel, sla_dias, cor, requisitos, campos) VALUES
+// ═══════════════════ VIEWS HTML ═══════════════════
+const VIEWS=`
+<section id="view-dashboard" class="view active">
+  <div><p class="page-title">Dashboard</p><p class="page-sub">Dados em tempo real — SLC Agrícola</p></div>
 
-(1, 'Anexo de RAID', 'QSSMA', 1, '#3B82F6',
-  '["Anexo do documento RAID em PDF liberado pelo QSSMA para investigação"]',
-  '[{"id":"obs","label":"Observações (opcional)","type":"textarea","req":false}]'
-),
+  <!-- 4 KPIs em linha -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+    <div class="kpi-card clickable" style="border-top-color:var(--yellow)" onclick="goProcessos('Em Andamento')">
+      <span class="kpi-label">📂 Em Aberto</span>
+      <span class="kpi-value" id="kpi-abertos">—</span>
+      <span class="kpi-sub">→ Em Andamento</span>
+    </div>
+    <div class="kpi-card clickable" style="border-top-color:var(--blue)" onclick="goProcessos('Concluído')">
+      <span class="kpi-label">✅ Concluídos</span>
+      <span class="kpi-value" id="kpi-concluidos">—</span>
+      <span class="kpi-sub">→ Concluídos</span>
+    </div>
+    <div class="kpi-card" style="border-top-color:var(--accent)">
+      <span class="kpi-label">% Médio (aberto)</span>
+      <span class="kpi-value" id="kpi-pct">—</span>
+      <span class="kpi-sub">progresso médio geral</span>
+    </div>
+    <div class="kpi-card" style="border-top-color:var(--green)">
+      <span class="kpi-label">⏱ Tempo Médio Total</span>
+      <span class="kpi-value" id="kpi-tempo">—</span>
+      <span class="kpi-sub">dias (emissão → RH)</span>
+    </div>
+  </div>
 
-(2, 'Investigação', 'Coordenador', 3, '#A78BFA',
-  '["Conclusão da investigação","Parecer técnico","Identificar erro operacional"]',
-  '[
-    {"id":"conclusao",   "label":"Conclusão da Investigação", "type":"textarea","req":true},
-    {"id":"parecer",     "label":"Parecer Técnico",           "type":"textarea","req":true},
-    {"id":"data_invest", "label":"Data da Investigação",      "type":"date",    "req":true},
-    {"id":"erro_op",     "label":"Houve Erro Operacional?",   "type":"select",  "req":true,"options":["Sim","Não"]},
-    {"id":"obs",         "label":"Observações (opcional)",    "type":"textarea","req":false}
-  ]'
-),
+  <!-- Tempo médio por etapa (25%) + Status dos Processos (75%) -->
+  <div style="display:grid;grid-template-columns:1fr 3fr;gap:14px">
+    <div class="card">
+      <span class="card-title">Tempo Médio por Etapa</span>
+      <div style="display:flex;flex-direction:column;gap:10px" id="etapa-media-list">
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--dim);font-size:12px">Carregando…</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <span class="card-title">Status dos Processos</span>
+      <div id="status-legend"></div>
+      <div style="display:flex;gap:6px;margin-top:14px" id="status-strip"></div>
+    </div>
+  </div>
 
-(3, 'Advertência', 'Coordenador', 2, '#FB923C',
-  '["Data da advertência","Número do documento","PDF da advertência assinado"]',
-  '[
-    {"id":"data_advert", "label":"Data da Advertência",  "type":"date",    "req":true},
-    {"id":"num_doc",     "label":"Número do Documento",  "type":"text",    "req":true},
-    {"id":"tipo_advert", "label":"Tipo de Advertência",  "type":"select",  "req":true,"options":["Advertência Verbal","Advertência Escrita","Suspensão"]},
-    {"id":"obs",         "label":"Observações (opcional)","type":"textarea","req":false}
-  ]'
-),
+  <!-- Ranking (esquerda) + Gráfico pizza por setor (direita) -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div class="card">
+      <span class="card-title">🏆 Ranking de Coordenadores</span>
+      <div id="dash-ranking"></div>
+    </div>
+    <div class="card">
+      <span class="card-title">📊 RAIDs por Setor</span>
+      <div style="position:relative;height:240px;display:flex;align-items:center;justify-content:center">
+        <canvas id="pizza-setor" style="max-height:240px"></canvas>
+      </div>
+      <div id="pizza-legenda" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;justify-content:center"></div>
+    </div>
+  </div>
 
-(4, 'Orçamento', 'Manutenção', 5, '#38BDF8',
-  '["Valor do orçamento","Empresa prestadora","PDF do orçamento"]',
-  '[
-    {"id":"valor",   "label":"Valor do Orçamento (R$)",  "type":"number","req":true},
-    {"id":"empresa", "label":"Empresa Prestadora",        "type":"text",  "req":true},
-    {"id":"data_orc","label":"Data do Orçamento",         "type":"date",  "req":true},
-    {"id":"prazo",   "label":"Prazo de Execução (dias)",  "type":"number","req":true},
-    {"id":"obs",     "label":"Observações (opcional)",    "type":"textarea","req":false}
-  ]'
-),
+  <!-- Timeline de atualizações -->
+  <div class="card">
+    <span class="card-title">📋 Linha do Tempo — Atualizações do Sistema</span>
+    <div id="dash-timeline" style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:0"></div>
+  </div>
+</section>
 
-(5, 'Lançamento em Folha', 'RH', 3, '#22C55E',
-  '["Data do lançamento","Valor descontado","PDF comprovante"]',
-  '[
-    {"id":"data_lanc",   "label":"Data do Lançamento",    "type":"date",  "req":true},
-    {"id":"valor_desc",  "label":"Valor Descontado (R$)", "type":"number","req":true},
-    {"id":"competencia", "label":"Competência (mês/ano)", "type":"text",  "req":true},
-    {"id":"obs",         "label":"Observações (opcional)","type":"textarea","req":false}
-  ]'
-);
+<section id="view-processos" class="view">
+  <div class="top-row">
+    <div><p class="page-title">Gestão de Processos</p><p class="page-sub" id="proc-count"></p></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-primary" onclick="openNovaRaid()">+ Nova RAID</button>
+      <span id="export-btn-slot"></span>
+    </div>
+  </div>
+  <div class="filter-row">
+    <button class="filter-btn active" id="fb-todos"     onclick="filterProc('Todos',this)">Todos</button>
+    <button class="filter-btn"        id="fb-andamento" onclick="filterProc('Em Andamento',this)">Em Andamento</button>
+    <button class="filter-btn"        id="fb-concluido" onclick="filterProc('Concluído',this)">Concluído</button>
+    <div style="width:1px;background:var(--border);margin:0 4px"></div>
+    <button class="filter-btn sla-btn" id="fb-ok"       onclick="filterProc('sla:ok',this)"       style="border-left:3px solid #22C55E">🟢 Dentro do Prazo</button>
+    <button class="filter-btn sla-btn" id="fb-proximo"  onclick="filterProc('sla:proximo',this)"  style="border-left:3px solid #EAB308">🟡 Próximo do Prazo</button>
+    <button class="filter-btn sla-btn" id="fb-atrasado" onclick="filterProc('sla:atrasado',this)" style="border-left:3px solid #EF4444">🔴 Atrasado</button>
+    <button class="filter-btn sla-btn" id="fb-concluidos-sla" onclick="filterProc('sla:concluido',this)" style="border-left:3px solid #38BDF8">🔵 Concluído</button>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+    <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:180px">
+      <label style="color:var(--muted);font-size:11px;font-weight:600;white-space:nowrap;text-transform:uppercase">Coordenador</label>
+      <select class="input-field" id="fl-coord" onchange="renderTable()" style="flex:1;padding:7px 10px;font-size:12px">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:180px">
+      <label style="color:var(--muted);font-size:11px;font-weight:600;white-space:nowrap;text-transform:uppercase">Setor</label>
+      <select class="input-field" id="fl-setor" onchange="renderTable()" style="flex:1;padding:7px 10px;font-size:12px">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <button class="btn-ghost btn-sm" onclick="limparFiltrosDropdown()" style="white-space:nowrap">✕ Limpar</button>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div style="overflow-x:auto">
+    <table class="tbl" style="min-width:900px">
+      <thead><tr>
+        <th style="white-space:nowrap">Nº RAID</th>
+        <th class="hide-mob">Setor</th>
+        <th class="hide-mob">Coordenador Etapa</th>
+        <th class="hide-mob">Coord. Responsável</th>
+        <th class="hide-mob" style="white-space:nowrap">Lançamento</th>
+        <th>Progresso</th>
+        <th>Etapa</th>
+        <th>Status</th>
+      </tr></thead>
+      <tbody id="proc-tbody"></tbody>
+    </table>
+    </div>
+  </div>
+</section>
 
--- ─────────────────────────────────────────────────────────────────────────────
--- 8. RAIDS (processos)
--- ─────────────────────────────────────────────────────────────────────────────
-CREATE TABLE raids (
-  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  numero_raid      TEXT NOT NULL UNIQUE,
-  fazenda_id       UUID REFERENCES fazendas(id)     ON DELETE SET NULL,
-  setor            TEXT,
-  colaborador_id   UUID REFERENCES colaboradores(id) ON DELETE SET NULL,
-  colaborador_nome TEXT,
-  coordenador_id   UUID REFERENCES usuarios(id)     ON DELETE SET NULL,
-  data_ocorrencia  DATE,
-  data_abertura    DATE DEFAULT CURRENT_DATE,
-  status           TEXT DEFAULT 'Em Andamento'
-                     CHECK (status IN ('Em Andamento','Concluído','Cancelado')),
-  etapa_atual      INT  DEFAULT 1 CHECK (etapa_atual BETWEEN 1 AND 5),
-  sla_status       TEXT DEFAULT 'ok'
-                     CHECK (sla_status IN ('ok','proximo','atrasado')),
-  dias_total       INT,
-  created_by       UUID REFERENCES usuarios(id) ON DELETE SET NULL,
-  created_at       TIMESTAMPTZ DEFAULT NOW(),
-  updated_at       TIMESTAMPTZ DEFAULT NOW()
-);
+<section id="view-timeline" class="view">
+  <div class="top-row">
+    <div><p class="page-title">Avançar Etapas — RAIDs</p><p class="page-sub" id="tl-subtitle">Selecione uma RAID</p></div>
+    <button class="btn-ghost" onclick="currentRaid=null;showView('timeline')">← Lista</button>
+  </div>
+  <div id="tl-selector" class="card"><span class="card-title">Selecione uma RAID</span><div style="display:flex;flex-direction:column;gap:8px" id="tl-raid-list"></div></div>
+  <div id="tl-detail" style="display:none;flex-direction:column;gap:16px">
+    <div class="card" id="tl-header"></div>
+    <div class="card"><span class="card-title">Linha do Tempo</span><div class="tl-h" id="tl-horizontal"></div></div>
+    <div class="step-cards" id="tl-step-cards"></div>
+  </div>
+</section>
 
--- ─────────────────────────────────────────────────────────────────────────────
--- 9. ETAPAS DOS PROCESSOS
--- ─────────────────────────────────────────────────────────────────────────────
-CREATE TABLE raid_etapas (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  raid_id        UUID NOT NULL REFERENCES raids(id) ON DELETE CASCADE,
-  etapa_ordem    INT  NOT NULL CHECK (etapa_ordem BETWEEN 1 AND 5),
-  responsavel_id UUID REFERENCES usuarios(id) ON DELETE SET NULL,
-  inicio         TIMESTAMPTZ,
-  fim            TIMESTAMPTZ,
-  obs            TEXT,
-  anexo_nome     TEXT,
-  anexo_url      TEXT,
-  campos         JSONB DEFAULT '{}',
-  created_at     TIMESTAMPTZ DEFAULT NOW(),
-  updated_at     TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE (raid_id, etapa_ordem)
-);
+<section id="view-ranking" class="view">
+  <div><p class="page-title">📈 Indicadores</p><p class="page-sub">Métricas e gráficos de desempenho dos processos RAID</p></div>
+  <div id="ranking-list"></div>
+</section>
 
--- ─────────────────────────────────────────────────────────────────────────────
--- 10. HISTÓRICO
--- ─────────────────────────────────────────────────────────────────────────────
-CREATE TABLE historico (
-  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  raid_id    UUID REFERENCES raids(id)    ON DELETE CASCADE,
-  usuario_id UUID REFERENCES usuarios(id) ON DELETE SET NULL,
-  acao       TEXT NOT NULL,
-  detalhes   JSONB,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+<section id="view-etapas" class="view">
+  <div><p class="page-title">⚙️ Configuração de Etapas</p><p class="page-sub">Admin — alterações salvas automaticamente</p></div>
+  <div class="tabs">
+    <button class="tab-btn active" id="etab-etapas" onclick="showEtapaTab('etapas',this)">Etapas do Processo</button>
+    <button class="tab-btn" id="etab-campos" onclick="showEtapaTab('campos',this)">Campos da Nova RAID</button>
+  </div>
+  <div id="etapas-list"></div>
+  <div id="campos-raid-list" style="display:none"></div>
+</section>
 
--- ─────────────────────────────────────────────────────────────────────────────
--- 11. TRIGGER updated_at
--- ─────────────────────────────────────────────────────────────────────────────
-CREATE OR REPLACE FUNCTION set_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+<section id="view-cadastros" class="view">
+  <p class="page-title">Cadastros</p>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('fazendas',this)">Fazendas</button>
+    <button class="tab-btn" onclick="showTab('cargos',this)">Cargos</button>
+    <button class="tab-btn" onclick="showTab('setores',this)">Setores</button>
+    <button class="tab-btn" onclick="showTab('colaboradores',this)">Colaboradores</button>
+    <button class="tab-btn" onclick="showTab('usuarios',this)">Usuários</button>
+  </div>
+  <div id="tab-content"></div>
+</section>`;
 
-CREATE TRIGGER raids_updated_at
-  BEFORE UPDATE ON raids
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+function buildViews(){
+  const id=appMode==="desktop"?"d-views":"m-views";
+  document.getElementById(id).innerHTML=VIEWS;
+  // inject admin-only export button
+  const slot=document.getElementById("export-btn-slot");
+  if(slot&&isAdmin()) slot.innerHTML='<button class="btn-ghost" onclick="exportarDados()">⬇ Exportar</button>';
+}
 
-CREATE TRIGGER raid_etapas_updated_at
-  BEFORE UPDATE ON raid_etapas
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+// ═══════════════════ NAVIGATION ═══════════════════
+function showView(id){
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+  const el=document.getElementById("view-"+id);
+  if(el) el.classList.add("active");
+  if(id==="timeline") renderTimeline();
+  if(id==="ranking") renderRanking();
+  if(id==="etapas") renderEtapas();
+  if(id==="cadastros") renderCadastros();
+}
+function deskNav(id,btn){
+  document.querySelectorAll("#sidebar-desk .nav-btn").forEach(b=>b.classList.remove("active"));
+  if(btn) btn.classList.add("active");
+  showView(id);
+}
+function mobNav(id){
+  toggleDrawer(false);
+  ["dashboard","processos","timeline","ranking"].forEach(v=>document.getElementById("mb-"+v)?.classList.toggle("active",v===id));
+  showView(id);
+}
+function goProcessos(filter){
+  goProcessosSla(filter==="Concluído"?"concluido":filter==="Em Andamento"?"andamento":"todos");
+}
+function goProcessosSla(sla){
+  // Map sla key to filter value
+  const filterMap={todos:"Todos",andamento:"Em Andamento",concluido:"sla:concluido",ok:"sla:ok",proximo:"sla:proximo",atrasado:"sla:atrasado"};
+  procFilter=filterMap[sla]||"Todos";
+  // Activate the right button
+  document.querySelectorAll(".filter-btn").forEach(b=>b.classList.remove("active"));
+  const btnMap={
+    "Todos":"fb-todos","Em Andamento":"fb-andamento",
+    "sla:ok":"fb-ok","sla:proximo":"fb-proximo",
+    "sla:atrasado":"fb-atrasado","sla:concluido":"fb-concluidos-sla",
+    "Concluído":"fb-concluido"
+  };
+  document.getElementById(btnMap[procFilter]||"fb-todos")?.classList.add("active");
+  renderTable();
+  if(appMode==="desktop") deskNav("processos",document.querySelectorAll("#sidebar-desk .nav-btn")[1]);
+  else mobNav("processos");
+}
+function filterProc(f,btn){
+  procFilter=f;
+  document.querySelectorAll(".filter-btn").forEach(b=>b.classList.remove("active"));
+  if(btn) btn.classList.add("active");
+  renderTable();
+}
+function toggleDrawer(f){
+  const d=document.getElementById("mob-drawer");
+  if(f===false) d.classList.remove("open"); else d.classList.toggle("open");
+}
 
--- ─────────────────────────────────────────────────────────────────────────────
--- 12. DESABILITAR RLS
--- ─────────────────────────────────────────────────────────────────────────────
-ALTER TABLE fazendas      DISABLE ROW LEVEL SECURITY;
-ALTER TABLE cargos        DISABLE ROW LEVEL SECURITY;
-ALTER TABLE setores       DISABLE ROW LEVEL SECURITY;
-ALTER TABLE usuarios      DISABLE ROW LEVEL SECURITY;
-ALTER TABLE colaboradores DISABLE ROW LEVEL SECURITY;
-ALTER TABLE etapas_config DISABLE ROW LEVEL SECURITY;
-ALTER TABLE raids         DISABLE ROW LEVEL SECURITY;
-ALTER TABLE raid_etapas   DISABLE ROW LEVEL SECURITY;
-ALTER TABLE historico     DISABLE ROW LEVEL SECURITY;
+// ═══════════════════ INIT ═══════════════════
+async function initAll(){
+  const errEl=document.getElementById("login-err");
+  try {
+    console.log("🔄 loadAll start");
+    await loadAll();
+    console.log("✅ loadAll done");
 
--- ─────────────────────────────────────────────────────────────────────────────
--- 13. VIEW RESUMO
--- ─────────────────────────────────────────────────────────────────────────────
-CREATE OR REPLACE VIEW v_raids_resumo AS
-SELECT
-  r.id, r.numero_raid, r.setor,
-  f.nome         AS fazenda,
-  f.codigo       AS fazenda_codigo,
-  r.colaborador_nome,
-  u.nome         AS coordenador,
-  r.data_ocorrencia, r.data_abertura,
-  r.status, r.etapa_atual, r.sla_status, r.dias_total,
-  ec.nome        AS etapa_atual_nome,
-  ec.responsavel AS etapa_responsavel,
-  ec.cor         AS etapa_cor
-FROM raids r
-LEFT JOIN fazendas      f  ON f.id  = r.fazenda_id
-LEFT JOIN usuarios      u  ON u.id  = r.coordenador_id
-LEFT JOIN etapas_config ec ON ec.ordem = r.etapa_atual;
+    console.log("🔄 initDashboard start");
+    initDashboard();
+    console.log("✅ initDashboard done");
 
--- ─────────────────────────────────────────────────────────────────────────────
--- 14. STORAGE BUCKET
---     Se falhar aqui, crie manualmente:
---     Supabase → Storage → New bucket → Nome: raid-anexos → Public ✓
--- ─────────────────────────────────────────────────────────────────────────────
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('raid-anexos', 'raid-anexos', true)
-ON CONFLICT (id) DO NOTHING;
+    console.log("🔄 initProcessos start");
+    initProcessos();
+    console.log("✅ initProcessos done");
 
--- ─────────────────────────────────────────────────────────────────────────────
--- 15. VERIFICAÇÃO FINAL
--- ─────────────────────────────────────────────────────────────────────────────
-SELECT table_name
-FROM information_schema.tables
-WHERE table_schema = 'public'
-  AND table_type = 'BASE TABLE'
-ORDER BY table_name;
+    console.log("🔄 renderTimelineSelector start");
+    renderTimelineSelector();
+    console.log("✅ renderTimelineSelector done");
 
--- ══════════════════════════════════════════════════════════════════════════════
---  ✅ FIM — você deve ver 9 tabelas:
---  cargos, colaboradores, etapas_config, fazendas, historico,
---  raid_etapas, raids, setores, usuarios
---
---  CREDENCIAIS INICIAIS:
---  Admin:       paulo.soares@slcagricola.com.br  /  123456
---  QSSMA:       luisa@slcagricola.com.br          /  qssma123
---  Coordenador: joao@slcagricola.com.br           /  coord123
---  Manutenção:  ricardo@slcagricola.com.br        /  manut123
---  RH:          sandra@slcagricola.com.br         /  rh12345
--- ══════════════════════════════════════════════════════════════════════════════
+    buildNotifications();
+  // Draw dashboard charts after DOM settles
+  setTimeout(()=>{ drawDashPizza(); renderDashTimeline(); },100);
 
+  } catch(e){
+    console.error("❌ initAll error:",e);
+    if(errEl){
+      errEl.textContent="❌ Erro durante inicialização: "+e.message+" (veja o console F12 para detalhes)";
+      errEl.style.display="block";
+    }
+    // Show error inside the app too
+    const mainEl=document.getElementById(appMode==="desktop"?"main-desk":"main-mob");
+    if(mainEl) mainEl.innerHTML=`<div style="background:#EF444415;border:1px solid #EF444444;border-radius:12px;padding:24px;margin:20px">
+      <p style="color:#EF4444;font-weight:700;margin-bottom:8px">❌ Erro ao carregar dados</p>
+      <p style="color:var(--muted);font-size:13px">${e.message}</p>
+      <p style="color:var(--muted);font-size:12px;margin-top:8px">Abra o console do navegador (F12 → Console) para ver o erro completo.</p>
+      <button class="btn-primary" style="margin-top:16px" onclick="initAll()">🔄 Tentar novamente</button>
+    </div>`;
+  }
+}
+
+// ═══════════════════ DASHBOARD ═══════════════════
+function initDashboard(){
+  const raids=DB.raids;
+  const abertos=raids.filter(r=>r.status==="Em Andamento");
+  const concluidos=raids.filter(r=>r.status==="Concluído");
+  const avgPct=abertos.length?(abertos.reduce((s,r)=>s+pct(r),0)/abertos.length).toFixed(1):0;
+  const avgT=concluidos.length?(concluidos.reduce((s,r)=>s+(r.dias_total||0),0)/concluidos.length).toFixed(1):0;
+  document.getElementById("kpi-abertos").textContent=abertos.length;
+  document.getElementById("kpi-concluidos").textContent=concluidos.length;
+  document.getElementById("kpi-pct").textContent=avgPct+"%";
+  document.getElementById("kpi-tempo").textContent=avgT;
+
+  // Tempo médio por etapa (calculado das raid_etapas concluídas)
+  const etapaNomes=["Anexo de RAID","Investigação","Advertência","Orçamento","Lançamento RH"];
+  const etapaMedias=etapaNomes.map((nome,i)=>{
+    const tempos=DB.raid_etapas
+      .filter(e=>e.etapa_ordem===i+1&&e.inicio&&e.fim)
+      .map(e=>Math.round((new Date(e.fim)-new Date(e.inicio))/86400000));
+    const avg=tempos.length?(tempos.reduce((a,b)=>a+b,0)/tempos.length).toFixed(1):"—";
+    return {nome,avg};
+  });
+  const el=document.getElementById("etapa-media-list");
+  if(el) el.innerHTML=etapaMedias.map(e=>`
+    <div style="display:flex;justify-content:space-between">
+      <span style="color:var(--dim);font-size:13px">${e.nome}</span>
+      <span style="color:var(--text);font-size:13px;font-weight:600">${e.avg==="—"?e.avg:e.avg+" dias"}</span>
+    </div>`).join("");
+
+  const qtOk=abertos.filter(r=>r.sla_status==="ok").length;
+  const qtProx=abertos.filter(r=>r.sla_status==="proximo").length;
+  const qtAtr=abertos.filter(r=>r.sla_status==="atrasado").length;
+  const grupos=[
+    {l:"Dentro do Prazo",qt:qtOk,   c:"#22C55E",sla:"ok"},
+    {l:"Próximo do Prazo",qt:qtProx, c:"#EAB308",sla:"proximo"},
+    {l:"Atrasado",        qt:qtAtr,  c:"#EF4444",sla:"atrasado"},
+    {l:"Concluído",       qt:concluidos.length,c:"#38BDF8",sla:"concluido"},
+  ];
+  document.getElementById("status-legend").innerHTML=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:100%">${grupos.map(g=>`
+    <div onclick="goProcessosSla('${g.sla}')" style="background:${g.c}12;border:1px solid ${g.c}44;border-radius:10px;padding:12px 14px;cursor:pointer;transition:all .15s" onmouseover="this.style.background='${g.c}25'" onmouseout="this.style.background='${g.c}12'">
+      <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px">
+        <div style="width:8px;height:8px;border-radius:50%;background:${g.c}"></div>
+        <span style="color:${g.c};font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">${g.l}</span>
+      </div>
+      <span style="color:var(--text);font-size:26px;font-weight:700;font-family:'Georgia',serif">${g.qt}</span>
+      <p style="color:${g.c};font-size:10px;margin-top:4px">Ver processos →</p>
+    </div>`).join("")}</div>`;
+  document.getElementById("status-strip").innerHTML=grupos.map(g=>`<div onclick="goProcessosSla('${g.sla}')" style="flex:1;height:8px;border-radius:4px;background:${g.c};cursor:pointer;transition:opacity .15s" title="${g.l}: ${g.qt}" onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'"></div>`).join("");
+
+  const ranking=calcRanking();
+  document.getElementById("dash-ranking").innerHTML=ranking.slice(0,4).map((c,i)=>`
+    <div style="display:flex;align-items:center;gap:14px;padding:10px 0;border-top:${i>0?"1px solid var(--border)":"none"}">
+      <span style="font-size:22px;width:28px;text-align:center">${medal(i)}</span>
+      <div style="flex:1">
+        <p class="text-main fw-600 fs-13">
+          <a href="#" onclick="filtrarPorCoord('${c.id}');return false" style="color:var(--accent);text-decoration:underline;text-underline-offset:3px">${c.nome}</a>
+        </p>
+        <p class="text-muted" style="font-size:11px;margin-top:2px">${c.processos} processos · ${c.taxa}% conclusão</p>
+      </div>
+      <span class="text-main fw-600">${c.tempMedio} dias</span>
+    </div>`).join("");
+}
+
+// ═══════════════════ PROCESSOS ═══════════════════
+function initProcessos(){
+  document.getElementById("proc-count").textContent=DB.raids.length+" processos";
+  // Populate coordenador dropdown
+  const coords=[...new Set(DB.raids.map(r=>r.coordenador_id).filter(Boolean))];
+  const flCoord=document.getElementById("fl-coord");
+  if(flCoord){
+    const prev=flCoord.value;
+    flCoord.innerHTML='<option value="">Todos</option>'+
+      coords.map(id=>{const u=getUserById(id);return `<option value="${id}" ${prev===id?"selected":""}>${u.nome}</option>`;}).join("");
+  }
+  // Populate setor dropdown from raids.setor field
+  const setores=[...new Set(DB.raids.map(r=>r.setor).filter(Boolean))].sort();
+  const flSetor=document.getElementById("fl-setor");
+  if(flSetor){
+    const prev=flSetor.value;
+    flSetor.innerHTML='<option value="">Todos</option>'+
+      setores.map(s=>`<option value="${s}" ${prev===s?"selected":""}>${s}</option>`).join("");
+  }
+  renderTable();
+}
+function limparFiltrosDropdown(){
+  const fc=document.getElementById("fl-coord"), fs=document.getElementById("fl-setor");
+  if(fc) fc.value=""; if(fs) fs.value="";
+  renderTable();
+}
+function renderTable(){
+  let data=DB.raids;
+  // Status/SLA filter
+  if(procFilter==="Em Andamento")        data=data.filter(r=>r.status==="Em Andamento");
+  else if(procFilter==="Concluído")      data=data.filter(r=>r.status==="Concluído");
+  else if(procFilter==="sla:ok")         data=data.filter(r=>r.status==="Em Andamento"&&r.sla_status==="ok");
+  else if(procFilter==="sla:proximo")    data=data.filter(r=>r.status==="Em Andamento"&&r.sla_status==="proximo");
+  else if(procFilter==="sla:atrasado")   data=data.filter(r=>r.status==="Em Andamento"&&r.sla_status==="atrasado");
+  else if(procFilter==="sla:concluido")  data=data.filter(r=>r.status==="Concluído");
+  // Dropdown filters
+  const filtCoord=document.getElementById("fl-coord")?.value||"";
+  const filtSetor=document.getElementById("fl-setor")?.value||"";
+  if(filtCoord) data=data.filter(r=>r.coordenador_id===filtCoord);
+  if(filtSetor) data=data.filter(r=>(r.setor||"")===filtSetor);
+  // Update count
+  const labels={"Todos":"processos","Em Andamento":"em andamento","Concluído":"concluídos","sla:ok":"dentro do prazo","sla:proximo":"próximos do prazo","sla:atrasado":"atrasados","sla:concluido":"concluídos"};
+  const extras=[(filtCoord?` · coord. ${getUserById(filtCoord).nome}`:""), (filtSetor?` · setor ${filtSetor}`:"")].join("");
+  document.getElementById("proc-count").textContent=`${data.length} ${labels[procFilter]||"processos"}${extras}`;
+  document.getElementById("proc-tbody").innerHTML=data.map(r=>{
+    const f=getFazenda(r.fazenda_id), c=getUserById(r.coordenador_id), p=pct(r);
+    const ec=etapaConfig(r.etapa_atual-1);
+    const slaC=r.status==="Concluído"?"#38BDF8":slaColor(r.sla_status);
+    const etapaLabel=r.status==="Concluído"?"Concluída":"Etapa "+r.etapa_atual+" — "+ec.nome;
+    const slaText=r.status==="Em Andamento"?slaLabel(r.sla_status):"Concluído";
+    // Responsável pela etapa atual
+    const etapas=DB.raid_etapas.filter(e=>e.raid_id===r.id).sort((a,b)=>a.etapa_ordem-b.etapa_ordem);
+    const curEp=etapas.find(e=>e.etapa_ordem===r.etapa_atual);
+    const respEtapa=curEp?getUserById(curEp.responsavel_id):{nome:"—"};
+    // Data lançamento etapa 1
+    const ep1=etapas.find(e=>e.etapa_ordem===1);
+    return "<tr>"+
+      `<td style="white-space:nowrap"><a href="#" onclick="openRaidTimeline('${r.id}');return false">${r.numero_raid}</a></td>`+
+      `<td class="text-dim hide-mob">${r.setor||"—"}</td>`+
+      `<td class="text-dim hide-mob" style="font-size:12px">${respEtapa.nome}</td>`+
+      `<td class="text-dim hide-mob" style="font-size:12px">${c.nome}</td>`+
+      `<td class="text-muted hide-mob" style="white-space:nowrap;font-size:12px">${fmtDate(ep1?.inicio)}</td>`+
+      `<td style="min-width:90px"><div style="display:flex;align-items:center;gap:6px">${pbar(p,ec.cor||"#888")}<span class="text-main fw-600" style="font-size:11px;white-space:nowrap">${p}%</span></div></td>`+
+      `<td style="font-size:12px">${badge(etapaLabel,r.status==="Concluído"?"#38BDF8":ec.cor||"#888")}</td>`+
+      `<td><div style="display:flex;align-items:center;gap:5px"><div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${slaC}"></div>${badge(slaText,slaC)}</div></td>`+
+      "</tr>";
+  }).join("")||`<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Nenhum processo encontrado.</td></tr>`;
+}
+
+// ═══════════════════ TIMELINE ═══════════════════
+function etapasDoRaid(raid){ return DB.raid_etapas.filter(e=>e.raid_id===raid.id).sort((a,b)=>a.etapa_ordem-b.etapa_ordem); }
+
+function renderTimelineSelector(){
+  const el=document.getElementById("tl-raid-list"); if(!el)return;
+  el.innerHTML=DB.raids.map(r=>{
+    const f=getFazenda(r.fazenda_id), p=pct(r), ec=etapaConfig(r.etapa_atual-1);
+    return `<div style="display:flex;align-items:center;gap:14px;padding:12px;border-radius:8px;border:1px solid var(--border);cursor:pointer;background:var(--surface)" onclick="openRaidTimeline('${r.id}')">
+      <div style="flex:1"><span style="color:var(--accent);font-weight:700;font-size:13px">${r.numero_raid}</span>
+        <span class="text-muted fs-13" style="margin-left:10px">${f.nome} · ${r.colaborador_nome||"—"}</span></div>
+      <div style="display:flex;align-items:center;gap:8px;min-width:140px">${pbar(p,ec.cor||"#888")}<span class="text-main fw-600 fs-12">${p}%</span></div>
+      ${badge(r.status,r.status==="Concluído"?"#38BDF8":"#EAB308")}
+    </div>`;
+  }).join("")||`<p class="text-muted" style="text-align:center;padding:20px">Nenhum processo cadastrado.</p>`;
+}
+
+function openRaidTimeline(id){
+  currentRaid=DB.raids.find(r=>r.id===id); if(!currentRaid)return;
+  if(appMode==="desktop") deskNav("timeline",document.getElementById("d-nav-tl"));
+  else mobNav("timeline");
+}
+
+function renderTimeline(){
+  const sel=document.getElementById("tl-selector"), det=document.getElementById("tl-detail");
+  if(!sel||!det)return;
+  if(!currentRaid){ sel.style.display="block"; det.style.display="none"; renderTimelineSelector(); return; }
+  sel.style.display="none"; det.style.display="flex";
+  const r=currentRaid, f=getFazenda(r.fazenda_id), c=getUserById(r.coordenador_id), p=pct(r);
+  const etapas=etapasDoRaid(r);
+  document.getElementById("tl-subtitle").textContent="Gerenciando "+r.numero_raid;
+  document.getElementById("tl-header").innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          ${badge(r.numero_raid,"#3B82F6")} ${badge(f.nome,"#8B9AB0")}
+          ${badge(r.status,r.status==="Concluído"?"#38BDF8":"#EAB308")} ${badge(p+"%","#22C55E")}
+        </div>
+        <p class="text-muted fs-12">Colaborador: <b class="text-main">${r.colaborador_nome||"—"}</b> · Coordenador: <b class="text-main">${c.nome}</b></p>
+        <p class="text-muted fs-12" style="margin-top:3px">Ocorrência: ${fmtDate(r.data_ocorrencia)} · Abertura: ${fmtDate(r.data_abertura)}</p>
+      </div>
+      ${isPrivileged()?`<button class="btn-primary btn-sm" onclick="openAdminPanel('${r.id}')">🔧 Painel Admin</button>`:""}
+    </div>`;
+
+  document.getElementById("tl-horizontal").innerHTML=DB.etapas_config.map((ec,i)=>{
+    const ep=etapas[i]||{};
+    const done=!!ep.fim, cur=!done&&!!ep.inicio;
+    return `<div class="tl-step ${done?"done":""}">
+      <div class="tl-dot-h" style="background:${done?"#22C55E":cur?"#EAB308":"var(--border)"};border-color:${done?"#22C55E":cur?"#EAB308":"var(--border)"};color:${done||cur?"#fff":"var(--muted)"}">
+        ${done?"✓":cur?"⏳":i+1}</div>
+      <p class="tl-label-h" style="color:${done?"#22C55E":cur?"#EAB308":"var(--muted)"}">${ec.nome}</p>
+      <p class="tl-date-h">${ep.fim?fmtDate(ep.fim):ep.inicio?"Em andamento":""}</p>
+    </div>`;
+  }).join("");
+
+  document.getElementById("tl-step-cards").innerHTML=DB.etapas_config.map((ec,i)=>{
+    const ep=etapas[i]||{}, done=!!ep.fim, cur=!done&&!!ep.inicio, locked=!done&&!cur;
+    // Etapa 4 (index 3) EXCEPTION: Manutenção can always access it to attach budget,
+    // but SLA only starts counting when Etapa 3 is done.
+    const isEtapa4Exception = i===3;
+    const etapa3Done = !!(etapas[2]?.fim);
+    const canDo=isPrivileged()||(currentUser&&(currentUser.id===ep.responsavel_id||currentUser.perfil===ec.responsavel));
+    // For etapa 4: accessible if manutenção (or above), even if locked
+    const etapa4CanAccess = isEtapa4Exception && (isPrivileged()||currentUser?.perfil==="Manutenção");
+    const effectiveLocked = locked && !etapa4CanAccess;
+    let cls="step-card "+(done?"done":cur?"current":isEtapa4Exception&&!done?"current":"pending");
+    if(!effectiveLocked) cls+=" clickable-step";
+    // Label for etapa 4
+    let subLabel;
+    if(done) subLabel="Ver detalhes";
+    else if(isEtapa4Exception){
+      if(!etapa3Done) subLabel=etapa4CanAccess?"📎 Anexar orçamento (antecipado)":"⏳ Aguarda Etapa 3";
+      else subLabel=canDo?"Executar":"Aguardando";
+    } else {
+      subLabel=cur?(canDo?"Executar":"Aguardando"):"Pendente";
+    }
+    return `<div class="${cls}" onclick="${effectiveLocked?"":done?`openStepView(${i})`:`openStepAdvance(${i})`}">
+      <div style="font-size:20px;margin-bottom:6px">${done?"✅":isEtapa4Exception&&!done&&etapa4CanAccess?"📎":cur?"⏳":effectiveLocked?"🔒":"⬜"}</div>
+      <p style="font-size:11px;font-weight:600;color:${done?"var(--green)":isEtapa4Exception&&!done&&etapa4CanAccess?"#38BDF8":cur?"var(--yellow)":"var(--muted)"}">Etapa ${i+1}</p>
+      <p style="font-size:10px;font-weight:600;color:${done?"var(--green)":isEtapa4Exception&&!done&&etapa4CanAccess?"#38BDF8":cur?"var(--yellow)":"var(--muted)"}">${ec.nome}</p>
+      <p style="font-size:10px;color:var(--muted);margin-top:4px">${subLabel}</p>
+      ${isEtapa4Exception&&!done&&!etapa3Done?`<p style="font-size:9px;color:#38BDF8;margin-top:3px">SLA inicia após Etapa 3</p>`:""}
+    </div>`;
+  }).join("");
+}
+
+function openStepView(idx){
+  const r=currentRaid, ec=DB.etapas_config[idx], etapas=etapasDoRaid(r), ep=etapas[idx]||{};
+  const resp=getUserById(ep.responsavel_id), dur=duracao(ep.inicio,ep.fim);
+  const campos=ep.campos||{}, fields=(typeof ec.campos==="string"?JSON.parse(ec.campos):ec.campos)||[];
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>✅ Etapa ${idx+1}: ${ec.nome} — Concluída</h3>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+      <div class="card-sm">
+        <div class="step-info-row"><span class="text-muted fs-12">Responsável</span><span class="text-main fw-600">${resp.nome} ${badge(resp.perfil,resp.cor||"#888")}</span></div>
+        <div class="step-info-row"><span class="text-muted fs-12">Início da Etapa</span><span class="text-main fw-600">${fmtDatetime(ep.inicio)}</span></div>
+        <div class="step-info-row"><span class="text-muted fs-12">Conclusão</span><span class="text-main fw-600">${fmtDatetime(ep.fim)}</span></div>
+        <div class="step-info-row" style="border:none"><span class="text-muted fs-12">⏱ Duração</span><span style="color:var(--green);font-weight:700">${dur}</span></div>
+      </div>
+      <div class="card-sm">
+        <p class="text-muted fs-12" style="margin-bottom:10px;font-weight:600">Campos preenchidos:</p>
+        ${fields.map(f=>{const v=campos[f.id]||"";const ok=v&&v.trim()!=="";return `
+          <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+            <span style="color:${ok?"#22C55E":"#2A3344"};font-size:14px;flex-shrink:0">${ok?"✔":"○"}</span>
+            <div><p class="text-muted" style="font-size:10px;text-transform:uppercase">${f.label}</p>
+              <p class="text-main fw-600 fs-13" style="margin-top:2px">${v||"—"}</p></div>
+          </div>`;}).join("")}
+      </div>
+      ${ep.anexo_nome?`<div class="card-sm"><span class="text-muted fs-12">Documento</span>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">📄</span><span class="text-main fs-13 fw-600">${ep.anexo_nome}</span></div>
+          ${ep.anexo_url?`<a class="download-btn" href="${ep.anexo_url}" target="_blank">⬇️ Download</a>`:""}
+        </div></div>`:""}
+    </div>`);
+}
+
+function openStepAdvance(idx){
+  const r=currentRaid, ec=DB.etapas_config[idx], etapas=etapasDoRaid(r), ep=etapas[idx]||{};
+  const resp=getUserById(ep.responsavel_id);
+  const isEtapa4=idx===3;
+  const etapa3Done=!!(etapas[2]?.fim);
+  // canDo: normal logic PLUS Manutenção can always access Etapa 4
+  const canDo=isPrivileged()||
+    (currentUser&&(currentUser.id===ep.responsavel_id||currentUser.perfil===ec.responsavel))||
+    (isEtapa4&&currentUser?.perfil==="Manutenção");
+  const allFields=parseJson(ec.campos,[]);
+  const skipIds=idx===0?["num_raid","data_ocorr","hora_ocorr","local","coord_emit"]:[];
+  const fields=allFields.filter(f=>!skipIds.includes(f.id));
+  const saved=ep.campos||{};
+  const faz=getFazenda(r.fazenda_id);
+  const etapa1Block=idx===0?`
+    <div class="card-sm" style="margin-bottom:14px;background:#1D346122;border-color:var(--accent)44">
+      <p class="text-muted" style="font-size:10px;font-weight:600;text-transform:uppercase;margin-bottom:8px">📋 Dados da RAID (cadastrados na abertura)</p>
+      <div class="step-info-row"><span class="text-muted fs-12">Nº RAID</span><span class="text-main fw-600">${r.numero_raid}</span></div>
+      <div class="step-info-row"><span class="text-muted fs-12">Data Ocorrência</span><span class="text-main fw-600">${fmtDate(r.data_ocorrencia)}</span></div>
+      <div class="step-info-row"><span class="text-muted fs-12">Fazenda</span><span class="text-main fw-600">${faz.nome}</span></div>
+      <div class="step-info-row" style="border:none"><span class="text-muted fs-12">Colaborador</span><span class="text-main fw-600">${r.colaborador_nome||"—"}</span></div>
+    </div>`:"";
+  // Etapa 4 antecipado notice
+  const etapa4Notice=isEtapa4&&!etapa3Done?`
+    <div style="background:#38BDF820;border:1px solid #38BDF855;border-radius:8px;padding:12px 14px;margin-bottom:14px">
+      <p style="color:#38BDF8;font-weight:700;font-size:13px;margin-bottom:4px">📎 Anexo Antecipado de Orçamento</p>
+      <p style="color:var(--muted);font-size:12px">Você pode anexar o orçamento agora, antes das etapas anteriores serem concluídas. O <b style="color:var(--text)">tempo de SLA da Etapa 4 começará a contar somente quando a Etapa 3 for concluída.</b></p>
+    </div>`:"";
+  const btnLabel=isEtapa4&&!etapa3Done?"💾 Salvar Orçamento (antecipado)":"✅ Concluir Etapa e Avançar";
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>⏳ Etapa ${idx+1}: ${ec.nome}</h3>
+    <div class="card-sm" style="margin-bottom:14px">
+      <div class="step-info-row"><span class="text-muted fs-12">Responsável</span><span class="text-main fw-600">${resp.nome} ${badge(resp.perfil,resp.cor||"#888")}</span></div>
+      <div class="step-info-row"><span class="text-muted fs-12">Início da Etapa</span><span class="text-main fw-600">${fmtDatetime(ep.inicio)}</span></div>
+      <div class="step-info-row" style="border:none"><span class="text-muted fs-12">Em aberto há</span><span style="color:var(--yellow);font-weight:700">${duracao(ep.inicio,null)}</span></div>
+    </div>
+    ${etapa1Block}${etapa4Notice}
+    ${canDo?`
+      <div style="display:flex;flex-direction:column;gap:0">
+        ${fields.map(f=>{
+          const v=saved[f.id]||"";
+          const filled=v&&v.toString().trim()!=="";
+          const dot=`<span id="dot-${f.id}" style="color:${filled?"#22C55E":"#2A3344"};font-size:13px;margin-left:4px">${filled?"✔":"○"}</span>`;
+          if(f.type==="file") return `<div class="field">
+            <label style="color:var(--muted);font-size:11px;font-weight:600;display:flex;align-items:center;text-transform:uppercase;margin-bottom:5px">${f.label}${f.req?'<span style="color:var(--red);margin-left:3px">*</span>':""}${dot}</label>
+            <input type="file" class="input-field" id="rf-${f.id}" accept=".pdf" onchange="updDot('${f.id}')"/>
+            ${saved[f.id]?`<p class="text-muted" style="font-size:11px;margin-top:3px">Atual: ${saved[f.id]}</p>`:""}
+          </div>`;
+          let inp="";
+          if(f.type==="textarea") inp=`<textarea class="input-field" id="rf-${f.id}" rows="3" style="resize:vertical" oninput="updDot('${f.id}')">${v}</textarea>`;
+          else if(f.type==="select") inp=`<select class="input-field" id="rf-${f.id}" onchange="updDot('${f.id}')"><option value="">— Selecione —</option>${(f.options||[]).map(o=>`<option ${v===o?"selected":""}>${o}</option>`).join("")}</select>`;
+          else inp=`<input class="input-field" id="rf-${f.id}" type="${f.type||"text"}" value="${v}" oninput="updDot('${f.id}')"/>`;
+          return `<div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:flex;align-items:center;text-transform:uppercase;margin-bottom:5px">${f.label}${f.req?'<span style="color:var(--red);margin-left:3px">*</span>':""}${dot}</label>${inp}</div>`;
+        }).join("")}
+      </div>
+      <div class="field" style="margin-top:8px">
+        <label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Documento/Evidência (PDF) <span style="color:var(--red)">*</span></label>
+        <input type="file" class="input-field" id="step-file" accept=".pdf"/>
+        ${ep.anexo_nome?`<p class="text-muted" style="font-size:11px;margin-top:3px">Atual: ${ep.anexo_nome}</p>`:""}
+      </div>
+      <button class="btn-primary" style="width:100%;margin-top:12px" onclick="concludeStep(${idx})">${btnLabel}</button>
+    `:`<div style="text-align:center;padding:20px;background:var(--surface);border-radius:8px">
+        <p style="font-size:28px;margin-bottom:8px">🔒</p>
+        <p class="text-muted fs-13">Sem permissão para executar esta etapa.</p>
+        <p class="text-muted" style="font-size:11px;margin-top:4px">Responsável: ${resp.nome} (${resp.perfil})</p>
+      </div>`}`);
+}
+
+function updDot(fid){
+  const el=document.getElementById("rf-"+fid), dot=document.getElementById("dot-"+fid);
+  if(!el||!dot)return;
+  const ok=el.value&&el.value.trim()!=="";
+  dot.textContent=ok?"✔":"○"; dot.style.color=ok?"#22C55E":"#2A3344";
+}
+
+async function concludeStep(idx){
+  const r=currentRaid, ec=DB.etapas_config[idx], etapas=etapasDoRaid(r), ep=etapas[idx]||{};
+  const isEtapa4=idx===3;
+  const etapa3Done=!!(etapas[2]?.fim);
+  const skipIds=idx===0?["num_raid","data_ocorr","hora_ocorr","local","coord_emit"]:[];
+  const allFields=parseJson(ec.campos,[]);
+  const fields=allFields.filter(f=>!skipIds.includes(f.id));
+  const file=document.getElementById("step-file")?.files[0];
+  const missing=[];
+  fields.forEach(f=>{
+    if(!f.req) return;
+    if(f.type==="file"){const el=document.getElementById("rf-"+f.id);if((!el||!el.files?.length)&&!(ep.campos||{})[f.id])missing.push(f.label);}
+    else{const el=document.getElementById("rf-"+f.id);if(!el||!el.value.trim())missing.push(f.label);}
+  });
+  if(!file&&!ep.anexo_nome) missing.push("Documento/Evidência (PDF)");
+  if(missing.length){alert("Preencha os campos obrigatórios:\n\n• "+missing.join("\n• "));return;}
+  const campos={...(ep.campos||{})};
+  fields.forEach(f=>{
+    if(f.type==="file"){const el=document.getElementById("rf-"+f.id);if(el?.files?.[0])campos[f.id]=el.files[0].name;}
+    else{const el=document.getElementById("rf-"+f.id);if(el)campos[f.id]=String(el.value||"");}
+  });
+  const now=new Date().toISOString();
+  let anexo_nome=ep.anexo_nome, anexo_url=ep.anexo_url||null;
+  if(file){
+    anexo_nome=file.name;
+    const path=`${r.id}/etapa-${idx+1}/${Date.now()}-${file.name}`;
+    const _url=await uploadFile("raid-anexos",path,file);
+    if(_url) anexo_url=_url;
+  }
+
+  // ETAPA 4 EXCEPTION: if Etapa 3 not yet done, save orçamento without marking as fim
+  // SLA will only start counting when Etapa 3 concludes (inicio set from etapa3.fim)
+  if(isEtapa4&&!etapa3Done){
+    await dbUpdate("raid_etapas",ep.id,{campos,obs:campos.obs||"",anexo_nome,anexo_url,updated_at:now});
+    showToast("Orçamento salvo antecipadamente! ✅ SLA inicia quando Etapa 3 for concluída.");
+    closeModal(); await loadAll(); currentRaid=DB.raids.find(x=>x.id===r.id); renderTimeline();
+    return;
+  }
+
+  // Normal flow: mark as done and advance
+  await dbUpdate("raid_etapas",ep.id,{fim:now,campos,obs:campos.obs||"",anexo_nome,anexo_url,updated_at:now});
+  const next=idx+1;
+  if(next<5){
+    const nextEp=etapas[next];
+    // For Etapa 3 (idx=2): when it concludes, set Etapa 4's inicio to now (start SLA)
+    if(idx===2&&nextEp?.id){
+      await dbUpdate("raid_etapas",nextEp.id,{inicio:now,updated_at:now});
+    } else if(nextEp?.id&&!nextEp.inicio){
+      await dbUpdate("raid_etapas",nextEp.id,{inicio:now,updated_at:now});
+    }
+    await dbUpdate("raids",r.id,{etapa_atual:next+1,status:"Em Andamento",updated_at:now});
+  } else {
+    const dias=Math.round((new Date()-new Date(etapas[0]?.inicio||r.data_abertura))/86400000);
+    await dbUpdate("raids",r.id,{etapa_atual:5,status:"Concluído",dias_total:dias,updated_at:now});
+  }
+  showToast("Etapa concluída com sucesso! ✅");
+  closeModal(); await loadAll(); currentRaid=DB.raids.find(x=>x.id===r.id); renderTimeline(); initDashboard(); initProcessos();
+}
+
+// ═══════════════════ ADMIN PANEL ═══════════════════
+function openAdminPanel(raidId){
+  const r=DB.raids.find(x=>x.id===raidId);
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>🔧 Painel Admin — ${r.numero_raid}</h3>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+      <div class="card-sm">
+        <p class="text-main fw-600 fs-13" style="margin-bottom:10px">⚡ Forçar Etapa Atual</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select class="input-field" id="force-step" style="flex:1">
+            ${DB.etapas_config.map(e=>`<option value="${e.ordem}" ${r.etapa_atual===e.ordem?"selected":""}>${e.ordem}. ${e.nome}</option>`).join("")}
+          </select>
+          <button class="btn-primary btn-sm" onclick="forceStep('${raidId}')">Aplicar</button>
+        </div>
+      </div>
+      <div class="card-sm">
+        <p class="text-main fw-600 fs-13" style="margin-bottom:10px">✏️ Editar Dados de uma Etapa</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select class="input-field" id="edit-step-sel" style="flex:1">
+            ${DB.etapas_config.map(e=>`<option value="${e.ordem-1}">${e.ordem}. ${e.nome}</option>`).join("")}
+          </select>
+          <button class="btn-primary btn-sm" onclick="openEditStepModal('${raidId}')">Editar</button>
+        </div>
+      </div>
+      <div class="card-sm" style="border-color:#EF444444;background:#EF444408">
+        <p class="text-main fw-600 fs-13" style="margin-bottom:6px">🗑 Deletar Processo</p>
+        <p class="text-muted" style="font-size:11px;margin-bottom:10px">Ação irreversível. Remove todos os dados deste processo.</p>
+        <button class="btn-sm btn-danger" style="width:100%;padding:9px" onclick="deleteRaid('${raidId}')">🗑 Confirmar Exclusão</button>
+      </div>
+    </div>`);
+}
+
+async function forceStep(raidId){
+  const sel=document.getElementById("force-step");
+  if(!sel){showToast("Selecione uma etapa","error");return;}
+  const step=parseInt(sel.value);
+  const now=new Date().toISOString();
+  await dbUpdate("raids",raidId,{etapa_atual:step,status:"Em Andamento",updated_at:now});
+  // Atualiza etapas: completa anteriores, abre atual, limpa próximas
+  const etapas=etapasDoRaid({id:raidId});
+  for(let i=0;i<5;i++){
+    const ep=etapas[i];
+    if(!ep) continue;
+    if(i<step-1 && !ep.fim){
+      await dbUpdate("raid_etapas",ep.id,{fim:now,updated_at:now});
+    } else if(i===step-1){
+      await dbUpdate("raid_etapas",ep.id,{inicio:ep.inicio||now,fim:null,updated_at:now});
+    } else if(i>step-1 && ep.inicio){
+      await dbUpdate("raid_etapas",ep.id,{inicio:null,fim:null,updated_at:now});
+    }
+  }
+  showToast("Etapa forçada para "+step+" ✅");
+  closeModal(); await loadAll(); currentRaid=DB.raids.find(x=>x.id===raidId); renderTimeline();
+}
+
+async function openEditStepModal(raidId){
+  const idx=parseInt(document.getElementById("edit-step-sel").value);
+  const etapas=etapasDoRaid({id:raidId}); const ep=etapas[idx]||{};
+  closeModal();
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>✏️ Editar Etapa ${idx+1}</h3>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:14px">
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Início</label><input class="input-field" id="es-ini" type="datetime-local" value="${ep.inicio?ep.inicio.slice(0,16):""}"/></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Conclusão</label><input class="input-field" id="es-fim" type="datetime-local" value="${ep.fim?ep.fim.slice(0,16):""}"/></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Observações</label><textarea class="input-field" id="es-obs" rows="3">${ep.obs||""}</textarea></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Nome do Anexo</label><input class="input-field" id="es-anx" value="${ep.anexo_nome||""}"/></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn-primary" style="flex:1" onclick="saveEditStep('${ep.id||""}','${raidId}',${idx})">💾 Salvar</button>
+        <button class="btn-ghost btn-sm" style="padding:9px 14px" onclick="openAdminPanel('${raidId}')">← Voltar</button>
+      </div>
+    </div>`);
+}
+
+async function saveEditStep(epId,raidId,idx){
+  const ini=document.getElementById("es-ini").value, fim=document.getElementById("es-fim").value;
+  const obs=document.getElementById("es-obs").value, anx=document.getElementById("es-anx").value;
+  if(epId){
+    await dbUpdate("raid_etapas",epId,{inicio:ini||null,fim:fim||null,obs,anexo_nome:anx||null,updated_at:new Date().toISOString()});
+  }
+  showToast("Etapa atualizada ✅"); closeModal();
+  await loadAll(); currentRaid=DB.raids.find(x=>x.id===raidId); renderTimeline();
+}
+
+async function deleteRaid(raidId){
+  if(!confirm("Excluir este processo permanentemente?"))return;
+  await dbDelete("raids",raidId);
+  showToast("Processo excluído","error"); closeModal();
+  currentRaid=null; await loadAll(); renderTimeline(); initDashboard(); initProcessos();
+}
+
+// ═══════════════════ RANKING ═══════════════════
+function calcRanking(){
+  return DB.usuarios.filter(u=>u.perfil==="Coordenador"||u.perfil==="QSSMA").map(u=>{
+    const tempos=DB.raid_etapas.filter(e=>e.responsavel_id===u.id&&e.inicio&&e.fim)
+      .map(e=>(new Date(e.fim)-new Date(e.inicio))/86400000);
+    const tratados=DB.raids.filter(r=>DB.raid_etapas.some(e=>e.raid_id===r.id&&e.responsavel_id===u.id&&e.fim));
+    const avg=tempos.length?(tempos.reduce((a,b)=>a+b,0)/tempos.length).toFixed(1):"-";
+    const taxa=tratados.length?Math.round(tratados.filter(r=>r.status==="Concluído").length/tratados.length*100):0;
+    return {id:u.id, nome:u.nome, processos:tratados.length, tempMedio:avg, taxa, cor:u.cor};
+  }).sort((a,b)=>(parseFloat(a.tempMedio)||99)-(parseFloat(b.tempMedio)||99));
+}
+
+function filtrarPorCoord(coordId){
+  procFilter="Todos";
+  document.querySelectorAll(".filter-btn").forEach(b=>b.classList.remove("active"));
+  document.getElementById("fb-todos")?.classList.add("active");
+  // set coord dropdown
+  const fl=document.getElementById("fl-coord");
+  if(fl) fl.value=coordId;
+  renderTable();
+  if(appMode==="desktop") deskNav("processos",document.querySelectorAll("#sidebar-desk .nav-btn")[1]);
+  else mobNav("processos");
+}
+function renderRanking(){
+  const rk=calcRanking();
+  const colors=["#22C55E","#22C55E88","#EAB308","#EF4444"];
+  const abertos=DB.raids.filter(r=>r.status==="Em Andamento");
+  const concluidos=DB.raids.filter(r=>r.status==="Concluído");
+  const totalRaids=DB.raids.length;
+  const txConclusao=totalRaids?Math.round(concluidos.length/totalRaids*100):0;
+  const avgDias=concluidos.length?(concluidos.reduce((s,r)=>s+(r.dias_total||0),0)/concluidos.length).toFixed(1):0;
+
+  // SLA por etapa
+  const etapaSla=DB.etapas_config.map(ec=>{
+    const atrasados=abertos.filter(r=>{
+      if(r.etapa_atual!==ec.ordem) return false;
+      const ep=DB.raid_etapas.find(e=>e.raid_id===r.id&&e.etapa_ordem===ec.ordem);
+      if(!ep?.inicio) return false;
+      const dias=Math.floor((new Date()-new Date(ep.inicio))/86400000);
+      return dias>ec.sla_dias;
+    }).length;
+    return {nome:ec.nome,atrasados,sla:ec.sla_dias,cor:ec.cor};
+  });
+
+  document.getElementById("ranking-list").innerHTML=`
+    <!-- Indicadores gerais -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+      <div class="kpi-card" style="border-top-color:#22C55E"><span class="kpi-label">Taxa de Conclusão</span><span class="kpi-value" style="font-size:28px">${txConclusao}%</span><span class="kpi-sub">${concluidos.length} de ${totalRaids} processos</span></div>
+      <div class="kpi-card" style="border-top-color:#EAB308"><span class="kpi-label">Em Andamento</span><span class="kpi-value" style="font-size:28px">${abertos.length}</span><span class="kpi-sub">processos ativos</span></div>
+      <div class="kpi-card" style="border-top-color:#EF4444"><span class="kpi-label">Atrasados</span><span class="kpi-value" style="font-size:28px">${abertos.filter(r=>r.sla_status==="atrasado").length}</span><span class="kpi-sub">fora do prazo SLA</span></div>
+      <div class="kpi-card" style="border-top-color:#3B82F6"><span class="kpi-label">Tempo Médio</span><span class="kpi-value" style="font-size:28px">${avgDias}</span><span class="kpi-sub">dias por processo</span></div>
+    </div>
+
+    <!-- Gráficos lado a lado -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+      <!-- Gráfico de barras: SLA por etapa -->
+      <div class="card">
+        <span class="card-title">⏱ Atrasos por Etapa (processos em aberto)</span>
+        ${etapaSla.map(e=>`
+          <div style="margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span style="color:var(--dim);font-size:12px">${e.nome}</span>
+              <span style="color:${e.atrasados>0?"var(--red)":"var(--green)"};font-weight:600;font-size:12px">${e.atrasados} atrasado${e.atrasados!==1?"s":""}</span>
+            </div>
+            <div style="background:var(--border);border-radius:99px;height:8px;overflow:hidden">
+              <div style="height:100%;border-radius:99px;background:${e.cor};width:${Math.min(100,(e.atrasados/Math.max(1,abertos.length))*100*3)}%"></div>
+            </div>
+          </div>`).join("")}
+      </div>
+
+      <!-- Gráfico pizza: status -->
+      <div class="card">
+        <span class="card-title">🥧 Distribuição de Status</span>
+        <div style="position:relative;height:180px;display:flex;align-items:center;justify-content:center">
+          <canvas id="pizza-status-ind"></canvas>
+        </div>
+        <div id="pizza-status-ind-leg" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;justify-content:center"></div>
+      </div>
+    </div>
+
+    <!-- Ranking de coordenadores com barra -->
+    <div class="card" style="margin-bottom:20px">
+      <span class="card-title">🏆 Ranking de Coordenadores — Menor tempo médio por etapa</span>
+      ${rk.map((c,i)=>`
+        <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-top:${i>0?"1px solid var(--border)":"none"}">
+          <span style="font-size:22px;width:28px;text-align:center">${medal(i)}</span>
+          <div style="flex:1">
+            <p style="color:var(--text);font-weight:600;font-size:13px">
+              <a href="#" onclick="filtrarPorCoord('${c.id}');return false" style="color:var(--accent);text-decoration:underline;text-underline-offset:3px">${c.nome}</a>
+            </p>
+            <div style="display:flex;gap:18px;margin-top:6px;flex-wrap:wrap">
+              <span style="color:var(--muted);font-size:12px">⏱ <b style="color:var(--text)">${c.tempMedio} dias</b></span>
+              <span style="color:var(--muted);font-size:12px">📋 <b style="color:var(--text)">${c.processos}</b> processos</span>
+              <span style="color:var(--muted);font-size:12px">✅ <b style="color:#22C55E">${c.taxa}%</b> conclusão</span>
+            </div>
+          </div>
+          <div style="min-width:130px">
+            <p style="color:var(--muted);font-size:10px;margin-bottom:5px;text-align:right">Tempo médio</p>
+            ${pbar(Math.max(5,(5-parseFloat(c.tempMedio||5))/5*100),colors[i]||"#EF4444")}
+          </div>
+        </div>`).join("")}
+    </div>
+
+    <!-- Gráfico: processos por setor -->
+    <div class="card">
+      <span class="card-title">📊 Processos por Setor</span>
+      <div style="position:relative;height:200px;display:flex;align-items:center;justify-content:center">
+        <canvas id="bar-setor-ind"></canvas>
+      </div>
+    </div>`;
+
+  // Draw charts after DOM update
+  setTimeout(()=>{
+    drawPizzaStatus("pizza-status-ind","pizza-status-ind-leg");
+    drawBarSetor("bar-setor-ind");
+  },50);
+}
+
+// ═══════════════════ ETAPAS EDITOR ═══════════════════
+const FIELD_TYPES=[
+  {val:"text",      label:"Texto curto"},
+  {val:"textarea",  label:"Texto longo / Observação"},
+  {val:"date",      label:"Data"},
+  {val:"time",      label:"Hora"},
+  {val:"number",    label:"Número / Valor"},
+  {val:"select",    label:"Alternativas (lista)"},
+  {val:"file",      label:"Anexo / PDF"},
+];
+
+function parseJson(v,def=[]){try{return typeof v==="string"?JSON.parse(v):v||def;}catch{return def;}}
+
+function renderEtapas(){
+  document.getElementById("etapas-list").innerHTML=DB.etapas_config.map((ec,i)=>{
+    const reqs=parseJson(ec.requisitos,[]);
+    const campos=parseJson(ec.campos,[]);
+    return `<div class="stage-row" id="stage-${i}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:12px;height:12px;border-radius:3px;background:${ec.cor}"></div>
+          <span class="text-main fw-600">Etapa ${ec.ordem}: ${ec.nome}</span>
+          ${badge(ec.responsavel,ec.cor)}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="text-muted fs-12">SLA:</span>
+          <input type="number" value="${ec.sla_dias}" min="1" style="width:50px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-size:12px" onchange="saveSla('${ec.id}',this.value)"/>
+          <span class="text-muted fs-12">dias</span>
+        </div>
+      </div>
+
+      <!-- PRÉ-REQUISITOS -->
+      <p class="text-muted" style="font-size:11px;font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">📌 Pré-requisitos</p>
+      <div id="reqs-${i}">${reqs.map((q,j)=>`
+        <div class="req-item">
+          ${q.obrigatorio!==false?'<span style="color:var(--red);font-size:10px;font-weight:700">OBR</span>':'<span style="color:var(--muted);font-size:10px">OPC</span>'}
+          ${q.texto||q}
+          <button onclick="removeReq('${ec.id}',${i},${j},'reqs')">✕</button>
+        </div>`).join("")}
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <input type="text" class="input-field" id="new-req-${i}" placeholder="Novo pré-requisito…" style="flex:1;min-width:120px"/>
+        <label style="display:flex;align-items:center;gap:4px;color:var(--muted);font-size:12px;white-space:nowrap">
+          <input type="checkbox" id="req-obr-${i}" checked/> Obrigatório
+        </label>
+        <button class="btn-primary btn-sm" onclick="addReq('${ec.id}',${i})">+ Add</button>
+      </div>
+
+      <!-- CAMPOS DO FORMULÁRIO -->
+      <p class="text-muted" style="font-size:11px;font-weight:600;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.05em">📝 Campos do Formulário</p>
+      <div id="campos-${i}">${campos.map((f,j)=>`
+        <div style="display:flex;align-items:center;gap:8px;background:var(--bg);border-radius:6px;padding:8px 10px;margin-top:5px;font-size:12px;flex-wrap:wrap">
+          <span style="color:${f.req?"var(--red)":"var(--muted)"};font-size:10px;font-weight:700">${f.req?"OBR":"OPC"}</span>
+          <span class="text-main" style="flex:1">${f.label}</span>
+          ${badge(FIELD_TYPES.find(t=>t.val===f.type)?.label||f.type,"#8B9AB0")}
+          ${f.type==="file"?'<span style="font-size:10px;color:var(--blue)">📎 Anexo</span>':""}
+          ${f.options?`<span class="text-muted" style="font-size:10px">${f.options.join(", ")}</span>`:""}
+          <button style="background:var(--red);color:#fff;border:none;border-radius:4px;padding:2px 7px;font-size:11px;cursor:pointer" onclick="removeCampo('${ec.id}',${i},${j})">✕</button>
+        </div>`).join("")}
+      </div>
+      <button class="btn-ghost btn-sm" style="margin-top:10px;width:100%" onclick="openAddCampoModal('${ec.id}',${i})">+ Adicionar Campo ao Formulário</button>
+    </div>`;
+  }).join("");
+}
+
+async function saveSla(id,val){
+  await dbUpdate("etapas_config",id,{sla_dias:parseInt(val)});
+  showToast("SLA atualizado ✅");
+}
+
+async function addReq(id,i){
+  const inp=document.getElementById("new-req-"+i);
+  const obr=document.getElementById("req-obr-"+i)?.checked!==false;
+  if(!inp.value.trim())return;
+  const ec=DB.etapas_config[i];
+  const reqs=[...parseJson(ec.requisitos,[]),{texto:inp.value.trim(),obrigatorio:obr}];
+  await dbUpdate("etapas_config",id,{requisitos:JSON.stringify(reqs)});
+  inp.value=""; await loadAll(); renderEtapas();
+}
+
+async function removeReq(id,i,j){
+  const ec=DB.etapas_config[i];
+  const reqs=parseJson(ec.requisitos,[]).filter((_,k)=>k!==j);
+  await dbUpdate("etapas_config",id,{requisitos:JSON.stringify(reqs)});
+  await loadAll(); renderEtapas();
+}
+
+async function removeCampo(id,i,j){
+  const ec=DB.etapas_config[i];
+  const campos=parseJson(ec.campos,[]).filter((_,k)=>k!==j);
+  await dbUpdate("etapas_config",id,{campos:JSON.stringify(campos)});
+  await loadAll(); renderEtapas();
+}
+
+function openAddCampoModal(ecId,i){
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>+ Adicionar Campo — Etapa ${i+1}</h3>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:14px">
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Nome do Campo *</label>
+        <input class="input-field" id="nc-label" placeholder="Ex: Data da Advertência"/></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">ID interno *</label>
+        <input class="input-field" id="nc-id" placeholder="Ex: data_advert (sem espaços)"/></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Tipo do Campo</label>
+        <select class="input-field" id="nc-type" onchange="toggleOpts()">
+          ${FIELD_TYPES.map(t=>`<option value="${t.val}">${t.label}</option>`).join("")}
+        </select></div>
+      <div class="field" id="nc-opts-wrap" style="display:none">
+        <label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Opções (separadas por vírgula)</label>
+        <input class="input-field" id="nc-opts" placeholder="Ex: Sim, Não, Talvez"/>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;cursor:pointer">
+        <input type="checkbox" id="nc-req" checked/> Campo obrigatório
+      </label>
+      <button class="btn-primary" onclick="saveCampo('${ecId}',${i})">💾 Adicionar Campo</button>
+    </div>`);
+}
+
+function toggleOpts(){
+  const t=document.getElementById("nc-type")?.value;
+  document.getElementById("nc-opts-wrap").style.display=t==="select"?"block":"none";
+}
+
+async function saveCampo(ecId,i){
+  const label=document.getElementById("nc-label").value.trim();
+  const id=document.getElementById("nc-id").value.trim().replace(/\s+/g,"_");
+  const type=document.getElementById("nc-type").value;
+  const opts=document.getElementById("nc-opts")?.value;
+  const req=document.getElementById("nc-req")?.checked!==false;
+  if(!label||!id){alert("Nome e ID são obrigatórios.");return;}
+  const ec=DB.etapas_config[i];
+  const campo={id,label,type,req};
+  if(type==="select"&&opts) campo.options=opts.split(",").map(o=>o.trim()).filter(Boolean);
+  const campos=[...parseJson(ec.campos,[]),campo];
+  await dbUpdate("etapas_config",ecId,{campos:JSON.stringify(campos)});
+  showToast("Campo adicionado ✅"); closeModal(); await loadAll(); renderEtapas();
+}
+
+// ═══════════════════ CADASTROS ═══════════════════
+function showEtapaTab(tab, btn){
+  currentEtapaTab=tab;
+  document.querySelectorAll("#etab-etapas,#etab-campos").forEach(b=>b.classList.remove("active"));
+  if(btn) btn.classList.add("active");
+  document.getElementById("etapas-list").style.display=tab==="etapas"?"block":"none";
+  document.getElementById("campos-raid-list").style.display=tab==="campos"?"block":"none";
+  if(tab==="campos") renderCamposRaid();
+  else renderEtapas();
+}
+
+function renderCamposRaid(){
+  const campos=DB.nova_raid_campos.sort((a,b)=>a.ordem-b.ordem);
+  document.getElementById("campos-raid-list").innerHTML=`
+    <div class="card" style="margin-top:8px">
+      <p style="color:var(--text);font-weight:600;margin-bottom:4px">Campos do Formulário "Nova RAID"</p>
+      <p style="color:var(--muted);font-size:12px;margin-bottom:16px">Defina quais campos aparecem ao criar um novo processo. Os campos de seleção (Fazenda, Setor, etc.) usam os cadastros como fonte.</p>
+      ${campos.map((f,i)=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="display:flex;gap:4px">
+            <button class="btn-sm" style="background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:4px 8px" onclick="moveCampoRaid(${i},-1)" ${i===0?"disabled":""}>↑</button>
+            <button class="btn-sm" style="background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:4px 8px" onclick="moveCampoRaid(${i},1)" ${i===campos.length-1?"disabled":""}>↓</button>
+          </div>
+          <div style="flex:1">
+            <input class="input-field" value="${f.label}" style="font-size:12px;padding:6px 10px" onblur="renameCampoRaid(${i},this.value)"/>
+          </div>
+          <span style="color:var(--muted);font-size:11px;white-space:nowrap">${f.type}</span>
+          <label style="display:flex;align-items:center;gap:4px;color:var(--muted);font-size:12px;white-space:nowrap;cursor:pointer">
+            <input type="checkbox" ${f.req?"checked":""} onchange="toggleReqRaid(${i},this.checked)"/> Obrig.
+          </label>
+        </div>`).join("")}
+    </div>`;
+}
+function moveCampoRaid(i,dir){
+  const c=DB.nova_raid_campos.sort((a,b)=>a.ordem-b.ordem);
+  const j=i+dir; if(j<0||j>=c.length)return;
+  [c[i].ordem,c[j].ordem]=[c[j].ordem,c[i].ordem];
+  saveNovaRaidCampos(); renderCamposRaid();
+}
+function renameCampoRaid(i,val){
+  const c=DB.nova_raid_campos.sort((a,b)=>a.ordem-b.ordem);
+  if(val.trim()) c[i].label=val.trim();
+  saveNovaRaidCampos();
+}
+function toggleReqRaid(i,val){
+  const c=DB.nova_raid_campos.sort((a,b)=>a.ordem-b.ordem);
+  c[i].req=val; saveNovaRaidCampos();
+}
+
+function showTab(id,btn){
+  currentTab=id;
+  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+  if(btn) btn.classList.add("active");
+  renderCadastros();
+}
+
+function renderCadastros(){
+  const ct=document.getElementById("tab-content"); if(!ct)return;
+  if(currentTab==="fazendas"){
+    ct.innerHTML=`<div class="top-row" style="margin-bottom:16px"><p class="text-main fw-600">Fazendas</p><button class="btn-primary btn-sm" onclick="modalFazenda()">+ Adicionar</button></div>
+      ${DB.fazendas.map(f=>`<div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-top:1px solid var(--border);flex-wrap:wrap">
+        <div style="background:var(--accentLo);color:var(--accent);border-radius:8px;padding:5px 10px;font-weight:700;font-size:11px">${f.codigo}</div>
+        <div style="flex:1"><p class="text-main fw-600 fs-13">${f.nome}</p><p class="text-muted" style="font-size:11px;margin-top:2px">${f.municipio} — ${f.estado}</p></div>
+        <button class="btn-sm" style="background:var(--surface);border:1px solid var(--border);color:var(--muted)" onclick="modalFazenda('${f.id}')">✏️</button>
+        <button class="btn-sm btn-danger" onclick="deleteFazenda('${f.id}')">🗑</button>
+      </div>`).join("")}`;
+  } else if(currentTab==="cargos"){
+    const nc={"Gerência":"#A78BFA","Coordenação":"#3B82F6","Supervisão":"#38BDF8","Técnico":"#FB923C","Analista":"#22C55E","Assistente":"#8B9AB0"};
+    ct.innerHTML=`<div class="top-row" style="margin-bottom:16px"><p class="text-main fw-600">Cargos</p><button class="btn-primary btn-sm" onclick="modalCargo()">+ Adicionar</button></div>
+      ${DB.cargos.map(c=>{const cor=nc[c.nivel]||"#8B9AB0";return `<div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-top:1px solid var(--border);flex-wrap:wrap">
+        <div style="width:36px;height:36px;border-radius:10px;background:${cor}22;display:flex;align-items:center;justify-content:center;font-size:16px">💼</div>
+        <div style="flex:1"><p class="text-main fw-600 fs-13">${c.nome}</p><div style="display:flex;gap:8px;margin-top:3px">${badge(c.nivel,cor)}<span class="text-muted" style="font-size:11px">· ${c.area}</span></div></div>
+        <button class="btn-sm" style="background:var(--surface);border:1px solid var(--border);color:var(--muted)" onclick="modalCargo('${c.id}')">✏️</button>
+        <button class="btn-sm btn-danger" onclick="deleteCargo('${c.id}')">🗑</button>
+      </div>`;}).join("")}`;
+  } else if(currentTab==="setores"){
+    const ct=document.getElementById("tab-content");
+    ct.innerHTML=`<div class="card" style="margin-top:8px">
+      <div class="top-row" style="margin-bottom:14px">
+        <p class="text-main fw-600">Setores Cadastrados</p>
+        <button class="btn-primary btn-sm" onclick="modalSetor()">+ Adicionar</button>
+      </div>
+      <p style="color:var(--muted);font-size:12px;margin-bottom:12px">Setores são usados como fonte nas listas suspensas dos processos.</p>
+      ${DB.setores.length===0?'<p style="color:var(--muted);text-align:center;padding:20px">Nenhum setor cadastrado.</p>':
+        DB.setores.map(s=>`<div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-top:1px solid var(--border)">
+          <div style="width:36px;height:36px;border-radius:8px;background:var(--accentLo);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px">🏭</div>
+          <div style="flex:1"><p class="text-main fw-600 fs-13">${s.nome}</p>${s.descricao?`<p class="text-muted" style="font-size:11px;margin-top:2px">${s.descricao}</p>`:""}</div>
+          <button class="btn-sm" style="background:var(--surface);border:1px solid var(--border);color:var(--muted)" onclick="modalSetor('${s.id}')">✏️</button>
+          <button class="btn-sm btn-danger" onclick="deleteSetor('${s.id}')">🗑</button>
+        </div>`).join("")}
+    </div>`;
+    return;
+  } else if(currentTab==="colaboradores"){
+    ct.innerHTML=`<div class="card" style="margin-top:0">
+      <div class="top-row" style="margin-bottom:14px">
+        <p class="text-main fw-600">Colaboradores Cadastrados</p>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn-primary btn-sm" onclick="modalColab()">+ Adicionar</button>
+          <button class="btn-ghost btn-sm" onclick="exportColabXls()">⬇ Excel</button>
+          <label class="btn-ghost btn-sm" style="cursor:pointer;display:inline-flex;align-items:center">⬆ Importar<input type="file" accept=".csv" style="display:none" onchange="importColabXls(this)"/></label>
+        </div>
+      </div>
+      <p style="color:var(--muted);font-size:11px;margin-bottom:12px">Para importar: exporte o Excel, preencha novas linhas e reimporte. Colunas: nome, matricula, email.</p>
+      ${DB.colaboradores.length===0?'<p style="color:var(--muted);text-align:center;padding:20px">Nenhum colaborador cadastrado.</p>':
+        DB.colaboradores.map(c=>{
+          const cargo=DB.cargos.find(x=>x.id===c.cargo_id)||{nome:"—"};
+          const faz=DB.fazendas.find(x=>x.id===c.fazenda_id)||{nome:"—"};
+          const gestor=DB.usuarios.find(x=>x.id===c.gestor_id)||{nome:"—"};
+          return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--border);flex-wrap:wrap">
+            <div style="width:36px;height:36px;border-radius:50%;background:var(--accentLo);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">${c.nome[0]}</div>
+            <div style="flex:1"><p class="text-main fw-600 fs-13">${c.nome} <span class="text-muted fs-12">· ${c.matricula}</span></p>
+              <p class="text-muted" style="font-size:11px;margin-top:2px">${cargo.nome} · ${faz.nome} · Gestor: ${gestor.nome}</p>
+            </div>
+            <button class="btn-sm" style="background:var(--surface);border:1px solid var(--border);color:var(--muted)" onclick="modalColab('${c.id}')">✏️</button>
+            <button class="btn-sm btn-danger" onclick="deleteColab('${c.id}')">🗑</button>
+          </div>`;}).join("")}
+    </div>`;
+  } else if(currentTab==="usuarios"){
+    ct.innerHTML=`<div class="top-row" style="margin-bottom:16px"><p class="text-main fw-600">Usuários</p><button class="btn-primary btn-sm" onclick="modalUsuario()">+ Novo</button></div>
+      ${DB.usuarios.map(u=>`<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--border);flex-wrap:wrap">
+        <div class="avatar" style="background:${u.cor}22;color:${u.cor}">${u.nome[0]}</div>
+        <div style="flex:1"><p class="text-main fw-600 fs-13">${u.nome}</p><p class="text-muted" style="font-size:11px;margin-top:1px">${u.email}</p></div>
+        ${badge(u.perfil,u.cor)}
+        <button class="btn-sm" style="background:var(--surface);border:1px solid var(--border);color:var(--muted)" onclick="modalUsuario('${u.id}')">✏️</button>
+        <button class="btn-sm btn-danger" onclick="deleteUsuario('${u.id}')">🗑</button>
+      </div>`).join("")}`;
+  }
+}
+
+// FAZENDA
+async function modalFazenda(id){
+  const f=id?DB.fazendas.find(x=>x.id===id):{};
+  openModal(`<button class="modal-close" onclick="closeModal()">✕</button><h3>${id?"✏️ Editar":"+ Nova"} Fazenda</h3>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:14px">
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Nome *</label><input class="input-field" id="fz-nome" value="${f?.nome||""}"/></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Código *</label><input class="input-field" id="fz-cod" value="${f?.codigo||""}" maxlength="6"/></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Município</label><input class="input-field" id="fz-mun" value="${f?.municipio||""}"/></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Estado (UF)</label><input class="input-field" id="fz-est" value="${f?.estado||""}" maxlength="2"/></div>
+      <button class="btn-primary" onclick="saveFazenda('${id||""}')">💾 Salvar</button>
+    </div>`);
+}
+async function saveFazenda(id){
+  const d={nome:document.getElementById("fz-nome").value.trim(),codigo:document.getElementById("fz-cod").value.trim().toUpperCase(),municipio:document.getElementById("fz-mun").value.trim(),estado:document.getElementById("fz-est").value.trim().toUpperCase()};
+  if(!d.nome||!d.codigo){alert("Nome e código são obrigatórios.");return;}
+  if(id) await dbUpdate("fazendas",id,d);
+  else await dbInsert("fazendas",d);
+  showToast("Fazenda salva ✅"); closeModal(); await loadAll(); renderCadastros();
+}
+async function deleteFazenda(id){
+  if(!confirm("Excluir esta fazenda?"))return;
+  await dbDelete("fazendas",id);
+  showToast("Excluída","error"); await loadAll(); renderCadastros();
+}
+
+// SETOR CRUD
+async function modalSetor(id){
+  const s=id?DB.setores.find(x=>x.id===id):{};
+  openModal(`<button class="modal-close" onclick="closeModal()">✕</button><h3>${id?"✏️ Editar":"+ Novo"} Setor</h3>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:14px">
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Nome do Setor *</label>
+        <input class="input-field" id="st-nome" value="${s?.nome||""}" placeholder="Ex: Plantio, Colheita, Manutenção…"/></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Descrição (opcional)</label>
+        <input class="input-field" id="st-desc" value="${s?.descricao||""}" placeholder="Breve descrição do setor"/></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn-primary" style="flex:1" onclick="saveSetor('${id||""}')">💾 Salvar</button>
+        ${id?`<button class="btn-sm btn-danger" style="padding:9px 16px" onclick="deleteSetor('${id}')">🗑</button>`:""}
+      </div>
+    </div>`);
+}
+async function saveSetor(id){
+  const nome=document.getElementById("st-nome").value.trim();
+  const descricao=document.getElementById("st-desc").value.trim();
+  if(!nome){alert("Informe o nome do setor.");return;}
+  if(id) await dbUpdate("setores",id,{nome,descricao:descricao||null});
+  else await dbInsert("setores",{nome,descricao:descricao||null});
+  showToast("Setor salvo ✅"); closeModal(); await loadAll(); renderCadastros();
+}
+async function deleteSetor(id){
+  if(!confirm("Excluir este setor?"))return;
+  await dbDelete("setores",id);
+  showToast("Excluído","error"); closeModal(); await loadAll(); renderCadastros();
+}
+
+// CARGO
+const NIVEIS=["Diretoria","Gerência","Coordenação","Supervisão","Técnico","Analista","Assistente","Operacional"];
+const AREAS=["QSSMA","Operações","Gestão","Manutenção","RH","Administrativo","Financeiro","Tecnologia","Jurídico"];
+async function modalCargo(id){
+  const c=id?DB.cargos.find(x=>x.id===id):{};
+  openModal(`<button class="modal-close" onclick="closeModal()">✕</button><h3>${id?"✏️ Editar":"+ Novo"} Cargo</h3>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:14px">
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Nome *</label><input class="input-field" id="cg-nome" value="${c?.nome||""}" placeholder="Ex: Coordenador de Campo"/></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Área</label>
+        <select class="input-field" id="cg-area">${AREAS.map(a=>`<option ${c?.area===a?"selected":""}>${a}</option>`).join("")}</select></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Nível</label>
+        <select class="input-field" id="cg-nivel">${NIVEIS.map(n=>`<option ${c?.nivel===n?"selected":""}>${n}</option>`).join("")}</select></div>
+      <button class="btn-primary" onclick="saveCargo('${id||""}')">💾 Salvar</button>
+    </div>`);
+}
+async function saveCargo(id){
+  const d={nome:document.getElementById("cg-nome").value.trim(),area:document.getElementById("cg-area").value,nivel:document.getElementById("cg-nivel").value};
+  if(!d.nome){alert("Informe o nome.");return;}
+  if(id) await dbUpdate("cargos",id,d);
+  else await dbInsert("cargos",d);
+  showToast("Cargo salvo ✅"); closeModal(); await loadAll(); renderCadastros();
+}
+async function deleteCargo(id){
+  if(!confirm("Excluir este cargo?"))return;
+  await dbDelete("cargos",id);
+  showToast("Excluído","error"); await loadAll(); renderCadastros();
+}
+
+// COLABORADOR
+async function modalColab(id){
+  const c=id?DB.colaboradores.find(x=>x.id===id):{};
+  openModal(`<button class="modal-close" onclick="closeModal()">✕</button><h3>${id?"✏️ Editar":"+ Novo"} Colaborador</h3>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:14px">
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Nome *</label><input class="input-field" id="cl-nome" value="${c?.nome||""}"/></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Matrícula *</label><input class="input-field" id="cl-mat" value="${c?.matricula||""}"/></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Cargo</label>
+        <select class="input-field" id="cl-cargo"><option value="">— Selecione —</option>${DB.cargos.map(x=>`<option value="${x.id}" ${c?.cargo_id===x.id?"selected":""}>${x.nome}</option>`).join("")}</select></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Fazenda</label>
+        <select class="input-field" id="cl-faz"><option value="">— Selecione —</option>${DB.fazendas.map(x=>`<option value="${x.id}" ${c?.fazenda_id===x.id?"selected":""}>${x.nome}</option>`).join("")}</select></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">E-mail</label><input class="input-field" id="cl-email" type="email" value="${c?.email||""}"/></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Gestor Responsável</label>
+        <select class="input-field" id="cl-gestor"><option value="">— Selecione —</option>${DB.usuarios.filter(u=>["Admin","QSSMA","Coordenador"].includes(u.perfil)).map(u=>`<option value="${u.id}" ${c?.gestor_id===u.id?"selected":""}>${u.nome} (${u.perfil})</option>`).join("")}</select></div>
+      <button class="btn-primary" onclick="saveColab('${id||""}')">💾 Salvar</button>
+    </div>`);
+}
+async function saveColab(id){
+  const d={nome:document.getElementById("cl-nome").value.trim(),matricula:document.getElementById("cl-mat").value.trim(),cargo_id:document.getElementById("cl-cargo").value||null,fazenda_id:document.getElementById("cl-faz").value||null,email:document.getElementById("cl-email").value.trim()||null,gestor_id:document.getElementById("cl-gestor").value||null};
+  if(!d.nome||!d.matricula){alert("Nome e matrícula são obrigatórios.");return;}
+  if(id) await dbUpdate("colaboradores",id,d);
+  else await dbInsert("colaboradores",d);
+  showToast("Colaborador salvo ✅"); closeModal(); await loadAll(); renderCadastros();
+}
+async function deleteColab(id){
+  if(!confirm("Excluir este colaborador permanentemente?"))return;
+  await dbDelete("colaboradores",id);
+  showToast("Colaborador excluído","error"); closeModal(); await loadAll(); renderCadastros();
+}
+
+// USUÁRIO
+const PERFIS=["Admin","QSSMA","Coordenador","Manutenção","RH","Consulta"];
+const UCORES={Admin:"#EF4444",QSSMA:"#A78BFA",Coordenador:"#3B82F6","Manutenção":"#FB923C",RH:"#22C55E",Consulta:"#8B9AB0"};
+async function modalUsuario(id){
+  const u=id?DB.usuarios.find(x=>x.id===id):{};
+  openModal(`<button class="modal-close" onclick="closeModal()">✕</button><h3>${id?"✏️ Editar":"+ Novo"} Usuário</h3>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:14px">
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Nome *</label><input class="input-field" id="us-nome" value="${u?.nome||""}"/></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">E-mail *</label><input class="input-field" id="us-email" type="email" value="${u?.email||""}"/></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Senha ${id?"(em branco = não altera)":"*"}</label><input class="input-field" id="us-pwd" type="password" placeholder="••••••••"/></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Perfil</label>
+        <select class="input-field" id="us-perfil">${PERFIS.map(p=>`<option ${u?.perfil===p?"selected":""}>${p}</option>`).join("")}</select></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn-primary" style="flex:1" onclick="saveUsuario('${id||""}')">💾 Salvar</button>
+        ${id&&u?.id!==currentUser?.id?`<button class="btn-sm btn-danger" style="padding:9px 16px" onclick="deleteUsuario('${id}')">🗑</button>`:""}
+      </div>
+    </div>`);
+}
+async function saveUsuario(id){
+  const nome=document.getElementById("us-nome").value.trim();
+  const email=document.getElementById("us-email").value.trim();
+  const pwd=document.getElementById("us-pwd").value;
+  const perfil=document.getElementById("us-perfil").value;
+  if(!nome||!email){alert("Nome e e-mail são obrigatórios.");return;}
+  if(!id&&!pwd){alert("Informe a senha para novo usuário.");return;}
+  const d={nome,email,perfil,cor:UCORES[perfil]||"#888"};
+  if(pwd) d.senha_hash=pwd;
+  if(id) await dbUpdate("usuarios",id,d);
+  else await dbInsert("usuarios",{...d,ativo:true});
+  showToast("Usuário salvo ✅"); closeModal(); await loadAll(); renderCadastros();
+}
+async function deleteUsuario(id){
+  if(id===currentUser?.id){alert("Não é possível excluir seu próprio usuário.");return;}
+  if(!confirm("Excluir este usuário permanentemente?"))return;
+  await dbDelete("usuarios",id);
+  showToast("Usuário excluído","error"); closeModal(); await loadAll(); renderCadastros();
+}
+
+// ═══════════════════ NOVA RAID ═══════════════════
+function openNovaRaid(){
+  const coordenadores=DB.usuarios.filter(u=>["Admin","QSSMA","Coordenador"].includes(u.perfil));
+  const manut=DB.usuarios.filter(u=>u.perfil==="Manutenção");
+  const rh=DB.usuarios.filter(u=>u.perfil==="RH");
+  const qssma=DB.usuarios.filter(u=>u.perfil==="QSSMA"||u.perfil==="Admin");
+  openModal(`<button class="modal-close" onclick="closeModal()">✕</button><h3>+ Nova RAID</h3>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:14px">
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Número da RAID *</label>
+        <input class="input-field" id="nr-num" placeholder="Ex: 2026-001"/></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Data da Ocorrência *</label>
+        <input class="input-field" id="nr-ocorr" type="date"/></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Fazenda *</label>
+        <select class="input-field" id="nr-faz"><option value="">— Selecione —</option>
+          ${DB.fazendas.map(f=>`<option value="${f.id}">${f.nome} (${f.codigo}) — ${f.municipio}/${f.estado}</option>`).join("")}</select></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Setor *</label>
+        <select class="input-field" id="nr-setor">
+          <option value="">— Selecione o setor —</option>
+          ${DB.setores.map(s=>"<option value=\""+s.nome+"\">"+s.nome+"</option>").join("")}
+          <option value="__outro">Outro (digitar)</option>
+        </select>
+        <input class="input-field" id="nr-setor-outro" placeholder="Digite o setor…" style="margin-top:6px;display:none" oninput="this.style.display=this.value?'':'none'"/>
+      </div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Colaborador Envolvido *</label>
+        <select class="input-field" id="nr-colab"><option value="">— Selecione —</option>
+          ${DB.colaboradores.map(c=>{const cargo=DB.cargos.find(x=>x.id===c.cargo_id)||{nome:"—"};return `<option value="${c.nome}">${c.nome} — ${cargo.nome}</option>`;}).join("")}</select></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Coordenador Emitente (QSSMA) *</label>
+        <select class="input-field" id="nr-qssma"><option value="">— Selecione —</option>
+          ${qssma.map(u=>`<option value="${u.id}">${u.nome}</option>`).join("")}</select></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Coordenador/Gestor Responsável *</label>
+        <select class="input-field" id="nr-coord"><option value="">— Selecione —</option>
+          ${coordenadores.map(u=>`<option value="${u.id}">${u.nome} (${u.perfil})</option>`).join("")}</select></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Responsável Manutenção *</label>
+        <select class="input-field" id="nr-manut"><option value="">— Selecione —</option>
+          ${manut.map(u=>`<option value="${u.id}">${u.nome}</option>`).join("")}</select></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Responsável RH *</label>
+        <select class="input-field" id="nr-rh"><option value="">— Selecione —</option>
+          ${rh.map(u=>`<option value="${u.id}">${u.nome}</option>`).join("")}</select></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Descrição da Ocorrência *</label>
+        <textarea class="input-field" id="nr-desc" rows="3" placeholder="Descreva a ocorrência…"></textarea></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Documento Inicial (PDF)</label>
+        <input type="file" class="input-field" id="nr-file" accept=".pdf"/></div>
+      <button class="btn-primary" onclick="saveNovaRaid()">Abrir Processo</button>
+    </div>`);
+}
+
+async function saveNovaRaid(){
+  const num=document.getElementById("nr-num").value.trim();
+  const ocorr=document.getElementById("nr-ocorr").value;
+  const fazId=document.getElementById("nr-faz").value;
+  const setorSel=document.getElementById("nr-setor").value;
+  const setor=setorSel==="__outro"?(document.getElementById("nr-setor-outro")?.value.trim()||""):setorSel;
+  const colab=document.getElementById("nr-colab").value;
+  const qssmaId=document.getElementById("nr-qssma").value;
+  const coordId=document.getElementById("nr-coord").value;
+  const manutId=document.getElementById("nr-manut").value;
+  const rhId=document.getElementById("nr-rh").value;
+  const desc=document.getElementById("nr-desc").value.trim();
+  const file=document.getElementById("nr-file")?.files[0];
+  const missing=[];
+  if(!num)missing.push("Número da RAID"); if(!ocorr)missing.push("Data da Ocorrência");
+  if(!fazId)missing.push("Fazenda"); if(!setor)missing.push("Setor");
+  if(!colab)missing.push("Colaborador");
+  if(!qssmaId)missing.push("Coordenador Emitente"); if(!coordId)missing.push("Coordenador Responsável");
+  if(!desc)missing.push("Descrição da Ocorrência");
+  if(missing.length){alert("Preencha:\n\n• "+missing.join("\n• "));return;}
+  const now=new Date().toISOString();
+  let raidArr;
+  try {
+    raidArr = await dbInsert("raids",{
+      numero_raid:`RAID-${num}`,fazenda_id:fazId,setor,colaborador_nome:colab,coordenador_id:coordId,
+      data_ocorrencia:ocorr,data_abertura:now.split("T")[0],status:"Em Andamento",etapa_atual:1,
+      sla_status:"ok",created_by:currentUser.id
+    });
+  } catch(e){ alert("Erro ao criar processo: "+e.message); return; }
+  const raid = Array.isArray(raidArr) ? raidArr[0] : raidArr;
+  if(!raid?.id){ alert("Erro: processo criado sem ID retornado."); return; }
+  let anexo_nome=null, anexo_url=null;
+  if(file){
+    anexo_nome=file.name;
+    const path=`${raid.id}/etapa-1/${Date.now()}-${file.name}`;
+    const url=await uploadFile("raid-anexos",path,file);
+    if(url) anexo_url=url;
+  }
+  const resp_ids=[qssmaId,coordId,coordId,manutId||null,rhId||null];
+  const etapasRows=DB.etapas_config.map((ec,i)=>({
+    raid_id:raid.id,etapa_ordem:i+1,responsavel_id:resp_ids[i],
+    inicio:i===0?now:null,campos:i===0?{descricao:desc}:{},
+    anexo_nome:i===0?anexo_nome:null,anexo_url:i===0?anexo_url:null
+  }));
+  await dbInsert("raid_etapas",etapasRows);
+  showToast("Processo criado com sucesso! ✅"); closeModal();
+  await loadAll(); renderTimelineSelector(); initDashboard(); initProcessos();
+}
+
+// ═══════════════════ EXPORTAR (Admin) ═══════════════════
+function exportarDados(){
+  try {
+    const data=safeClone({
+      raids:DB.raids, raid_etapas:DB.raid_etapas,
+      usuarios:DB.usuarios.map(u=>({...u,senha_hash:"***"})), // mask passwords
+      fazendas:DB.fazendas, cargos:DB.cargos,
+      colaboradores:DB.colaboradores,
+      exportado_em:new Date().toISOString()
+    });
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+    a.download=`raid-manager-export-${new Date().toISOString().split("T")[0]}.json`; a.click();
+    showToast("Dados exportados ✅");
+  } catch(e) {
+    showToast("Erro ao exportar: "+e.message,"error");
+  }
+}
+
+// ═══════════════════ EXCEL COLABORADORES ═══════════════════
+function exportColabXls(){
+  const rows=[["nome","matricula","email","cargo","fazenda","gestor"]];
+  DB.colaboradores.forEach(c=>{
+    const cargo=DB.cargos.find(x=>x.id===c.cargo_id)||{nome:""};
+    const faz=DB.fazendas.find(x=>x.id===c.fazenda_id)||{nome:""};
+    const gestor=DB.usuarios.find(x=>x.id===c.gestor_id)||{nome:""};
+    rows.push([c.nome,c.matricula,c.email||"",cargo.nome,faz.nome,gestor.nome]);
+  });
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const bom="\uFEFF";
+  const blob=new Blob([bom+csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`colaboradores-${new Date().toISOString().split("T")[0]}.csv`;
+  a.click();
+  showToast("Exportado! Abra no Excel ✅");
+}
+
+async function importColabXls(input){
+  const file=input.files[0]; if(!file)return;
+  const text=await file.text();
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2){showToast("Arquivo vazio ou inválido","error");return;}
+  // parse CSV (simple, handles quotes)
+  const parse=line=>{const r=[];let cur="",inq=false;for(let c of line){if(c==='"'){inq=!inq;}else if(c===","&&!inq){r.push(cur.trim());cur="";}else cur+=c;}r.push(cur.trim());return r;};
+  const headers=parse(lines[0]).map(h=>h.toLowerCase().replace(/[^a-z]/g,""));
+  let imported=0, erros=0;
+  for(let i=1;i<lines.length;i++){
+    const vals=parse(lines[i]);
+    const get=k=>{const idx=headers.indexOf(k);return idx>=0?(vals[idx]||"").replace(/^"|"$/g,"").trim():"";};
+    const nome=get("nome"), matricula=get("matricula");
+    if(!nome||!matricula){erros++;continue;}
+    try{ await dbUpsert("colaboradores",{nome,matricula,email:get("email")||null},"matricula"); imported++; }catch(e){ erros++; }
+  }
+  await loadAll(); renderCadastros();
+  showToast(`Importados: ${imported} | Erros: ${erros}`);
+  input.value="";
+}
+
+// ═══════════════════ MODAL ═══════════════════
+function openModal(html){document.getElementById("modal-body").innerHTML=html;document.getElementById("modal").classList.add("open");}
+function closeModal(){document.getElementById("modal").classList.remove("open");}
+document.getElementById("modal").addEventListener("click",function(e){if(e.target===this)closeModal();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();if(e.key==="Enter"&&document.getElementById("login-screen").style.display!=="none")doLogin();});
+
+// ═══════════════════ CHART HELPERS (Canvas) ═══════════════════
+let pizzaCtx1=null, pizzaCtx2=null, barCtx=null;
+
+function drawPizza(canvasId, legendId, labels, values, colors){
+  const canvas=document.getElementById(canvasId); if(!canvas)return;
+  const ctx=canvas.getContext("2d");
+  const W=canvas.width=canvas.offsetWidth||220, H=canvas.height=220;
+  const cx=W/2, cy=H/2, r=Math.min(cx,cy)-10;
+  const total=values.reduce((a,b)=>a+b,0); if(!total)return;
+  let angle=-Math.PI/2;
+  ctx.clearRect(0,0,W,H);
+  values.forEach((v,i)=>{
+    const slice=(v/total)*Math.PI*2;
+    ctx.beginPath(); ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,angle,angle+slice);
+    ctx.closePath(); ctx.fillStyle=colors[i%colors.length]; ctx.fill();
+    // inner ring for donut look
+    ctx.beginPath(); ctx.arc(cx,cy,r*0.5,0,Math.PI*2); ctx.fillStyle="#1C2230"; ctx.fill();
+    angle+=slice;
+  });
+  // center text
+  ctx.fillStyle="#E2E8F0"; ctx.font="bold 18px 'Georgia',serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.fillText(total, cx, cy-8);
+  ctx.font="10px 'Segoe UI',sans-serif"; ctx.fillStyle="#8B9AB0";
+  ctx.fillText("total", cx, cy+10);
+  // legend
+  if(legendId){
+    const leg=document.getElementById(legendId); if(!leg)return;
+    leg.innerHTML=labels.map((l,i)=>`
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px">
+        <div style="width:10px;height:10px;border-radius:3px;background:${colors[i%colors.length]};flex-shrink:0"></div>
+        <span style="color:var(--muted)">${l}</span>
+        <span style="color:var(--text);font-weight:600">${values[i]}</span>
+      </div>`).join("");
+  }
+}
+
+function drawBarSetor(canvasId){
+  const canvas=document.getElementById(canvasId); if(!canvas)return;
+  const setorCounts={};
+  DB.raids.forEach(r=>{ if(r.setor) setorCounts[r.setor]=(setorCounts[r.setor]||0)+1; });
+  const labels=Object.keys(setorCounts); const values=labels.map(k=>setorCounts[k]);
+  if(!labels.length){ const ctx2=canvas.getContext("2d"); ctx2.fillStyle="#8B9AB0"; ctx2.font="13px 'Segoe UI'"; ctx2.textAlign="center"; ctx2.fillText("Sem dados de setor",canvas.width/2||110,60); return; }
+  const COLORS=["#3B82F6","#A78BFA","#FB923C","#38BDF8","#22C55E","#EAB308","#EF4444","#EC4899"];
+  const W=canvas.width=canvas.offsetWidth||400, H=canvas.height=200;
+  const ctx=canvas.getContext("2d"); ctx.clearRect(0,0,W,H);
+  const barW=Math.min(60,(W-40)/labels.length-10), gap=(W-40-barW*labels.length)/(labels.length+1);
+  const maxV=Math.max(...values); const scaleH=H-50;
+  labels.forEach((l,i)=>{
+    const x=40+gap*(i+1)+barW*i, bh=(values[i]/maxV)*scaleH, y=H-30-bh;
+    // bar with gradient feel
+    ctx.fillStyle=COLORS[i%COLORS.length]+"cc"; ctx.beginPath();
+    ctx.roundRect?ctx.roundRect(x,y,barW,bh,4):ctx.rect(x,y,barW,bh);
+    ctx.fill();
+    // value
+    ctx.fillStyle="#E2E8F0"; ctx.font="bold 12px 'Segoe UI'"; ctx.textAlign="center";
+    ctx.fillText(values[i],x+barW/2,y-5);
+    // label
+    ctx.fillStyle="#8B9AB0"; ctx.font="11px 'Segoe UI'";
+    ctx.fillText(l.length>8?l.slice(0,7)+"…":l, x+barW/2, H-10);
+  });
+}
+
+function drawPizzaStatus(canvasId, legendId){
+  const abertos=DB.raids.filter(r=>r.status==="Em Andamento");
+  const labels=["Dentro Prazo","Próximo","Atrasado","Concluído"];
+  const values=[
+    abertos.filter(r=>r.sla_status==="ok").length,
+    abertos.filter(r=>r.sla_status==="proximo").length,
+    abertos.filter(r=>r.sla_status==="atrasado").length,
+    DB.raids.filter(r=>r.status==="Concluído").length
+  ];
+  drawPizza(canvasId,legendId,labels,values,["#22C55E","#EAB308","#EF4444","#38BDF8"]);
+}
+
+function drawDashPizza(){
+  const setorCounts={};
+  DB.raids.forEach(r=>{ const s=r.setor||"Sem setor"; setorCounts[s]=(setorCounts[s]||0)+1; });
+  const labels=Object.keys(setorCounts), values=labels.map(k=>setorCounts[k]);
+  const COLORS=["#3B82F6","#A78BFA","#FB923C","#38BDF8","#22C55E","#EAB308","#EF4444","#EC4899","#14B8A6"];
+  drawPizza("pizza-setor","pizza-legenda",labels,values,COLORS);
+}
+
+function renderDashTimeline(){
+  const events=[];
+  DB.raid_etapas.filter(e=>e.fim).forEach(e=>{
+    const r=DB.raids.find(x=>x.id===e.raid_id)||{numero_raid:"—"};
+    const u=getUserById(e.responsavel_id);
+    const ec=DB.etapas_config.find(x=>x.ordem===e.etapa_ordem)||{nome:"—",cor:"#888"};
+    events.push({ts:new Date(e.fim),label:`${r.numero_raid} — ${ec.nome} concluída`,sub:`por ${u.nome}`,cor:ec.cor||"#888"});
+  });
+  DB.raids.forEach(r=>{
+    events.push({ts:new Date(r.created_at),label:`${r.numero_raid} — Processo aberto`,sub:`${r.colaborador_nome||"—"} · ${r.setor||""}`,cor:"#3B82F6"});
+  });
+  events.sort((a,b)=>b.ts-a.ts);
+  const el=document.getElementById("dash-timeline"); if(!el)return;
+  if(!events.length){el.innerHTML='<p style="color:var(--muted);text-align:center;padding:20px;font-size:13px">Nenhuma atualização registrada.</p>';return;}
+  el.innerHTML=events.slice(0,30).map((e,i)=>`
+    <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);align-items:flex-start">
+      <div style="width:8px;height:8px;border-radius:50%;background:${e.cor};flex-shrink:0;margin-top:5px"></div>
+      <div style="flex:1">
+        <p style="color:var(--text);font-size:13px;font-weight:600">${e.label}</p>
+        <p style="color:var(--muted);font-size:11px;margin-top:2px">${e.sub}</p>
+      </div>
+      <span style="color:var(--muted);font-size:11px;white-space:nowrap">${fmtDatetime(e.ts.toISOString())}</span>
+    </div>`).join("");
+}
+
+// ═══════════════════ NOTIFICATIONS ═══════════════════
+let notifList = [];
+
+function buildNotifications(){
+  if(!currentUser) return;
+  const uid=currentUser.id, perfil=currentUser.perfil;
+  const notifs=[];
+  const today=new Date();
+
+  DB.raids.forEach(r=>{
+    const etapas=DB.raid_etapas.filter(e=>e.raid_id===r.id).sort((a,b)=>a.etapa_ordem-b.etapa_ordem);
+    const curEp=etapas.find(e=>e.etapa_ordem===r.etapa_atual);
+    if(!curEp||r.status==="Concluído") return;
+
+    const ec=DB.etapas_config.find(e=>e.ordem===r.etapa_atual)||{nome:"—",sla_dias:3};
+    const isMine=curEp.responsavel_id===uid||
+      (perfil==="Coordenador"&&ec.responsavel==="Coordenador")||
+      (perfil==="QSSMA"&&ec.responsavel==="QSSMA")||
+      (perfil==="Manutenção"&&ec.responsavel==="Manutenção")||
+      (perfil==="RH"&&ec.responsavel==="RH")||
+      isAdmin();
+
+    if(!isMine) return;
+
+    // Pending (step not started yet for me)
+    if(!curEp.inicio){
+      notifs.push({type:"pending",cls:"unread",icon:"⏳",title:`${r.numero_raid} — Aguarda início`,sub:`Etapa ${r.etapa_atual}: ${ec.nome}`,raidId:r.id});
+      return;
+    }
+
+    // SLA warnings
+    if(curEp.inicio){
+      const diasAberto=Math.floor((today-new Date(curEp.inicio))/86400000);
+      const slaDias=ec.sla_dias||3;
+      if(diasAberto>=slaDias){
+        notifs.push({type:"late",cls:"urgent",icon:"🔴",title:`${r.numero_raid} — ATRASADO`,sub:`${ec.nome} em aberto há ${diasAberto} dias (SLA: ${slaDias}d)`,raidId:r.id});
+      } else if(diasAberto>=slaDias-1){
+        notifs.push({type:"warn",cls:"warn",icon:"🟡",title:`${r.numero_raid} — Vencendo hoje/amanhã`,sub:`${ec.nome} — ${slaDias-diasAberto} dia(s) restante(s)`,raidId:r.id});
+      } else {
+        notifs.push({type:"ok",cls:"unread",icon:"📋",title:`${r.numero_raid} — Pendente`,sub:`${ec.nome} em andamento (${diasAberto}/${slaDias}d)`,raidId:r.id});
+      }
+    }
+  });
+
+  // Sort: urgent first
+  notifs.sort((a,b)=>{"urgent warn unread ok".split(" ").indexOf(a.type)-"urgent warn unread ok".split(" ").indexOf(b.type)});
+  notifList=notifs;
+  updateNotifBadge();
+  renderNotifList();
+}
+
+function updateNotifBadge(){
+  const count=notifList.filter(n=>n.cls==="urgent"||n.cls==="warn"||n.cls==="unread").length;
+  ["notif-badge","mob-notif-badge"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.textContent=count>9?"9+":count;
+    el.style.display=count>0?"block":"none";
+  });
+}
+
+function renderNotifList(){
+  const el=document.getElementById("notif-list");
+  if(!el) return;
+  if(notifList.length===0){
+    el.innerHTML='<p style="padding:20px;text-align:center;color:var(--muted);font-size:13px">✅ Tudo em dia! Sem pendências.</p>';
+    return;
+  }
+  el.innerHTML=notifList.map(n=>`
+    <div class="notif-item ${n.cls}" onclick="openRaidTimeline('${n.raidId}');toggleNotif()">
+      <div class="notif-title">${n.icon} ${n.title}</div>
+      <div class="notif-sub">${n.sub}</div>
+    </div>`).join("");
+}
+
+function toggleNotif(){
+  const p=document.getElementById("notif-panel");
+  p.classList.toggle("open");
+  if(p.classList.contains("open")) renderNotifList();
+}
+function markAllRead(){
+  notifList=[];
+  updateNotifBadge();
+  renderNotifList();
+}
+// Close notif panel on outside click
+document.addEventListener("click",function(e){
+  const p=document.getElementById("notif-panel");
+  if(!p) return;
+  if(!p.contains(e.target)&&e.target.id!=="notif-btn"&&e.target.id!=="mob-notif-btn"){
+    p.classList.remove("open");
+  }
+});
+// Auto-refresh notifications every 5 minutes
+setInterval(()=>{ if(currentUser) buildNotifications(); }, 5*60*1000);
+
+// ═══════════════════ BOOT ═══════════════════
+(async()=>{
+  try{
+    console.log("🚀 Boot: loading initial data...");
+    await loadAll();
+    console.log("✅ Boot: data loaded, showing login");
+    document.getElementById("loading-screen").style.display="none";
+    document.getElementById("login-screen").style.display="flex";
+  } catch(e){
+    console.error("❌ Boot error:",e);
+    document.getElementById("loading-screen").innerHTML=`
+      <div style="background:var(--card);border:1px solid #EF444444;border-radius:14px;padding:28px;max-width:480px;margin:20px">
+        <p style="color:#EF4444;font-weight:700;font-size:16px;margin-bottom:10px">❌ Erro ao conectar ao banco</p>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:12px">${e.message}</p>
+        <div style="background:var(--bg);border-radius:8px;padding:12px;font-family:monospace;font-size:11px;color:#EAB308;word-break:break-all;max-height:160px;overflow-y:auto">${(e.stack||e.message).replace(/</g,"&lt;")}</div>
+        <p style="color:var(--muted);font-size:11px;margin-top:12px">Abra o console (F12) para mais detalhes. Verifique se as tabelas foram criadas no Supabase.</p>
+        <button onclick="location.reload()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:600;margin-top:16px;cursor:pointer">🔄 Recarregar</button>
+      </div>`;
+  }
+})();
+</script>
+</body>
+</html>
