@@ -111,8 +111,12 @@ select.input-field{appearance:none}
 .tl-dot-h{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;z-index:1;position:relative;border:2px solid}
 .tl-label-h{font-size:11px;font-weight:600;margin-top:8px;text-align:center}
 .tl-date-h{font-size:10px;color:var(--muted);margin-top:3px;text-align:center}
-.step-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:16px}
-.step-card{border-radius:8px;padding:10px 6px;text-align:center;border:1px solid var(--border);transition:all .2s}
+.step-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:12px}
+.step-card{border-radius:7px;padding:8px 4px;text-align:center;border:1px solid var(--border);transition:all .2s;min-width:0}
+.step-card .step-icon{font-size:16px;margin-bottom:3px}
+.step-card .step-num{font-size:10px;font-weight:600;margin-bottom:1px}
+.step-card .step-name{font-size:9px;font-weight:600;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.step-card .step-sub{font-size:9px;color:var(--muted);margin-top:2px}
 .step-card.done{background:#22C55E15;border-color:var(--green)}
 .step-card.current{background:#EAB30815;border-color:var(--yellow)}
 .step-card.pending{background:var(--card)}
@@ -590,11 +594,13 @@ const VIEWS=`
   </div>
   <div class="card" style="padding:0;overflow:hidden">
     <div style="overflow-x:auto">
-    <table class="tbl" style="min-width:900px">
+    <table class="tbl" style="min-width:1100px">
       <thead><tr>
         <th style="white-space:nowrap">Nº RAID</th>
+        <th class="hide-mob">Fazenda</th>
         <th class="hide-mob">Setor</th>
-        <th class="hide-mob">Coordenador Etapa</th>
+        <th class="hide-mob">Colaborador</th>
+        <th class="hide-mob">Coord. da Etapa</th>
         <th class="hide-mob">Coord. Responsável</th>
         <th class="hide-mob" style="white-space:nowrap">Lançamento</th>
         <th>Progresso</th>
@@ -727,8 +733,10 @@ async function initAll(){
     console.log("✅ renderTimelineSelector done");
 
     buildNotifications();
+    startRealtime();
+    // Draw dashboard charts after DOM settles
+    setTimeout(()=>{ drawDashPizza(); renderDashTimeline(); },150);
   // Draw dashboard charts after DOM settles
-  setTimeout(()=>{ drawDashPizza(); renderDashTimeline(); },100);
 
   } catch(e){
     console.error("❌ initAll error:",e);
@@ -867,7 +875,9 @@ function renderTable(){
     const ep1=etapas.find(e=>e.etapa_ordem===1);
     return "<tr>"+
       `<td style="white-space:nowrap"><a href="#" onclick="openRaidTimeline('${r.id}');return false">${r.numero_raid}</a></td>`+
-      `<td class="text-dim hide-mob">${r.setor||"—"}</td>`+
+      `<td class="text-dim hide-mob" style="font-size:12px">${f.nome}</td>`+
+      `<td class="text-dim hide-mob" style="font-size:12px">${r.setor||"—"}</td>`+
+      `<td class="text-dim hide-mob" style="font-size:12px">${r.colaborador_nome||"—"}</td>`+
       `<td class="text-dim hide-mob" style="font-size:12px">${respEtapa.nome}</td>`+
       `<td class="text-dim hide-mob" style="font-size:12px">${c.nome}</td>`+
       `<td class="text-muted hide-mob" style="white-space:nowrap;font-size:12px">${fmtDate(ep1?.inicio)}</td>`+
@@ -875,7 +885,7 @@ function renderTable(){
       `<td style="font-size:12px">${badge(etapaLabel,r.status==="Concluído"?"#38BDF8":ec.cor||"#888")}</td>`+
       `<td><div style="display:flex;align-items:center;gap:5px"><div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${slaC}"></div>${badge(slaText,slaC)}</div></td>`+
       "</tr>";
-  }).join("")||`<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Nenhum processo encontrado.</td></tr>`;
+  }).join("")||`<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--muted)">Nenhum processo encontrado.</td></tr>`;
 }
 
 // ═══════════════════ TIMELINE ═══════════════════
@@ -953,12 +963,11 @@ function renderTimeline(){
     } else {
       subLabel=cur?(canDo?"Executar":"Aguardando"):"Pendente";
     }
-    return `<div class="${cls}" onclick="${effectiveLocked?"":done?`openStepView(${i})`:`openStepAdvance(${i})`}">
-      <div style="font-size:20px;margin-bottom:6px">${done?"✅":isEtapa4Exception&&!done&&etapa4CanAccess?"📎":cur?"⏳":effectiveLocked?"🔒":"⬜"}</div>
-      <p style="font-size:11px;font-weight:600;color:${done?"var(--green)":isEtapa4Exception&&!done&&etapa4CanAccess?"#38BDF8":cur?"var(--yellow)":"var(--muted)"}">Etapa ${i+1}</p>
-      <p style="font-size:10px;font-weight:600;color:${done?"var(--green)":isEtapa4Exception&&!done&&etapa4CanAccess?"#38BDF8":cur?"var(--yellow)":"var(--muted)"}">${ec.nome}</p>
-      <p style="font-size:10px;color:var(--muted);margin-top:4px">${subLabel}</p>
-      ${isEtapa4Exception&&!done&&!etapa3Done?`<p style="font-size:9px;color:#38BDF8;margin-top:3px">SLA inicia após Etapa 3</p>`:""}
+    return `<div class="${cls}" onclick="${effectiveLocked?"":done?`openStepView(${i})`:`openStepAdvance(${i})`}" title="${ec.nome}">
+      <div class="step-icon">${done?"✅":isEtapa4Exception&&!done&&etapa4CanAccess?"📎":cur?"⏳":effectiveLocked?"🔒":"⬜"}</div>
+      <p class="step-num" style="color:${done?"var(--green)":isEtapa4Exception&&!done&&etapa4CanAccess?"#38BDF8":cur?"var(--yellow)":"var(--muted)"}">E${i+1}</p>
+      <p class="step-name" style="color:${done?"var(--green)":isEtapa4Exception&&!done&&etapa4CanAccess?"#38BDF8":cur?"var(--yellow)":"var(--muted)"}">${ec.nome}</p>
+      <p class="step-sub">${done?"Concluída":isEtapa4Exception&&!etapa3Done&&etapa4CanAccess?"Antecip.":cur?canDo?"Executar":"Aguard.":"Pendente"}</p>
     </div>`;
   }).join("");
 }
@@ -1104,6 +1113,7 @@ async function concludeStep(idx){
   // SLA will only start counting when Etapa 3 concludes (inicio set from etapa3.fim)
   if(isEtapa4&&!etapa3Done){
     await dbUpdate("raid_etapas",ep.id,{campos,obs:campos.obs||"",anexo_nome,anexo_url,updated_at:now});
+    await logHistorico("Orçamento anexado antecipadamente: "+r.numero_raid,{raid_id:r.id});
     showToast("Orçamento salvo antecipadamente! ✅ SLA inicia quando Etapa 3 for concluída.");
     closeModal(); await loadAll(); currentRaid=DB.raids.find(x=>x.id===r.id); renderTimeline();
     return;
@@ -1126,6 +1136,7 @@ async function concludeStep(idx){
     await dbUpdate("raids",r.id,{etapa_atual:5,status:"Concluído",dias_total:dias,updated_at:now});
   }
   showToast("Etapa concluída com sucesso! ✅");
+  await logHistorico(`Etapa ${idx+1} concluída: ${ec.nome}`, {raid_id:r.id});
   closeModal(); await loadAll(); currentRaid=DB.raids.find(x=>x.id===r.id); renderTimeline(); initDashboard(); initProcessos();
 }
 
@@ -1181,6 +1192,7 @@ async function forceStep(raidId){
       await dbUpdate("raid_etapas",ep.id,{inicio:null,fim:null,updated_at:now});
     }
   }
+  await logHistorico("Etapa forçada para "+step+" em "+DB.raids.find(x=>x.id===raidId)?.numero_raid,{raid_id:raidId});
   showToast("Etapa forçada para "+step+" ✅");
   closeModal(); await loadAll(); currentRaid=DB.raids.find(x=>x.id===raidId); renderTimeline();
 }
@@ -1210,12 +1222,15 @@ async function saveEditStep(epId,raidId,idx){
   if(epId){
     await dbUpdate("raid_etapas",epId,{inicio:ini||null,fim:fim||null,obs,anexo_nome:anx||null,updated_at:new Date().toISOString()});
   }
+  await logHistorico("Etapa editada (Admin): Etapa "+(idx+1),{raid_id:raidId});
   showToast("Etapa atualizada ✅"); closeModal();
   await loadAll(); currentRaid=DB.raids.find(x=>x.id===raidId); renderTimeline();
 }
 
 async function deleteRaid(raidId){
   if(!confirm("Excluir este processo permanentemente?"))return;
+  const rNum=DB.raids.find(x=>x.id===raidId)?.numero_raid||raidId;
+  await logHistorico(`Processo excluído: ${rNum}`,{raid_id:raidId});
   await dbDelete("raids",raidId);
   showToast("Processo excluído","error"); closeModal();
   currentRaid=null; await loadAll(); renderTimeline(); initDashboard(); initProcessos();
@@ -1623,6 +1638,7 @@ async function saveFazenda(id){
   if(!d.nome||!d.codigo){alert("Nome e código são obrigatórios.");return;}
   if(id) await dbUpdate("fazendas",id,d);
   else await dbInsert("fazendas",d);
+  await logHistorico((id?"Fazenda atualizada":"Fazenda criada")+": "+d.nome,{});
   showToast("Fazenda salva ✅"); closeModal(); await loadAll(); renderCadastros();
 }
 async function deleteFazenda(id){
@@ -1652,6 +1668,7 @@ async function saveSetor(id){
   if(!nome){alert("Informe o nome do setor.");return;}
   if(id) await dbUpdate("setores",id,{nome,descricao:descricao||null});
   else await dbInsert("setores",{nome,descricao:descricao||null});
+  await logHistorico((id?"Setor atualizado":"Setor criado")+": "+nome,{});
   showToast("Setor salvo ✅"); closeModal(); await loadAll(); renderCadastros();
 }
 async function deleteSetor(id){
@@ -1680,6 +1697,7 @@ async function saveCargo(id){
   if(!d.nome){alert("Informe o nome.");return;}
   if(id) await dbUpdate("cargos",id,d);
   else await dbInsert("cargos",d);
+  await logHistorico((id?"Cargo atualizado":"Cargo criado")+": "+d.nome,{});
   showToast("Cargo salvo ✅"); closeModal(); await loadAll(); renderCadastros();
 }
 async function deleteCargo(id){
@@ -1710,10 +1728,13 @@ async function saveColab(id){
   if(!d.nome||!d.matricula){alert("Nome e matrícula são obrigatórios.");return;}
   if(id) await dbUpdate("colaboradores",id,d);
   else await dbInsert("colaboradores",d);
+  await logHistorico((id?"Colaborador atualizado":"Colaborador criado")+": "+d.nome,{});
   showToast("Colaborador salvo ✅"); closeModal(); await loadAll(); renderCadastros();
 }
 async function deleteColab(id){
   if(!confirm("Excluir este colaborador permanentemente?"))return;
+  const nome=DB.colaboradores.find(x=>x.id===id)?.nome||id;
+  await logHistorico(`Colaborador excluído: ${nome}`,{});
   await dbDelete("colaboradores",id);
   showToast("Colaborador excluído","error"); closeModal(); await loadAll(); renderCadastros();
 }
@@ -1747,11 +1768,14 @@ async function saveUsuario(id){
   if(pwd) d.senha_hash=pwd;
   if(id) await dbUpdate("usuarios",id,d);
   else await dbInsert("usuarios",{...d,ativo:true});
+  await logHistorico((id?"Usuário atualizado":"Usuário criado")+": "+nome,{});
   showToast("Usuário salvo ✅"); closeModal(); await loadAll(); renderCadastros();
 }
 async function deleteUsuario(id){
   if(id===currentUser?.id){alert("Não é possível excluir seu próprio usuário.");return;}
   if(!confirm("Excluir este usuário permanentemente?"))return;
+  const nome=DB.usuarios.find(x=>x.id===id)?.nome||id;
+  await logHistorico(`Usuário excluído: ${nome}`,{});
   await dbDelete("usuarios",id);
   showToast("Usuário excluído","error"); closeModal(); await loadAll(); renderCadastros();
 }
@@ -1847,6 +1871,7 @@ async function saveNovaRaid(){
     anexo_nome:i===0?anexo_nome:null,anexo_url:i===0?anexo_url:null
   }));
   await dbInsert("raid_etapas",etapasRows);
+  await logHistorico(`Processo criado: RAID-${num}`, {raid_id:raid.id});
   showToast("Processo criado com sucesso! ✅"); closeModal();
   await loadAll(); renderTimelineSelector(); initDashboard(); initProcessos();
 }
@@ -1999,29 +2024,111 @@ function drawDashPizza(){
   drawPizza("pizza-setor","pizza-legenda",labels,values,COLORS);
 }
 
-function renderDashTimeline(){
-  const events=[];
-  DB.raid_etapas.filter(e=>e.fim).forEach(e=>{
-    const r=DB.raids.find(x=>x.id===e.raid_id)||{numero_raid:"—"};
-    const u=getUserById(e.responsavel_id);
-    const ec=DB.etapas_config.find(x=>x.ordem===e.etapa_ordem)||{nome:"—",cor:"#888"};
-    events.push({ts:new Date(e.fim),label:`${r.numero_raid} — ${ec.nome} concluída`,sub:`por ${u.nome}`,cor:ec.cor||"#888"});
-  });
-  DB.raids.forEach(r=>{
-    events.push({ts:new Date(r.created_at),label:`${r.numero_raid} — Processo aberto`,sub:`${r.colaborador_nome||"—"} · ${r.setor||""}`,cor:"#3B82F6"});
-  });
-  events.sort((a,b)=>b.ts-a.ts);
+async function renderDashTimeline(){
   const el=document.getElementById("dash-timeline"); if(!el)return;
-  if(!events.length){el.innerHTML='<p style="color:var(--muted);text-align:center;padding:20px;font-size:13px">Nenhuma atualização registrada.</p>';return;}
-  el.innerHTML=events.slice(0,30).map((e,i)=>`
-    <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);align-items:flex-start">
-      <div style="width:8px;height:8px;border-radius:50%;background:${e.cor};flex-shrink:0;margin-top:5px"></div>
-      <div style="flex:1">
-        <p style="color:var(--text);font-size:13px;font-weight:600">${e.label}</p>
-        <p style="color:var(--muted);font-size:11px;margin-top:2px">${e.sub}</p>
-      </div>
-      <span style="color:var(--muted);font-size:11px;white-space:nowrap">${fmtDatetime(e.ts.toISOString())}</span>
-    </div>`).join("");
+  el.innerHTML='<p style="color:var(--muted);font-size:12px;text-align:center;padding:12px">Carregando…</p>';
+  try {
+    const hist = await dbSelect("historico","select=id,acao,detalhes,usuario_id,raid_id,created_at&order=created_at.desc&limit=50");
+    if(!hist||!hist.length){
+      el.innerHTML='<p style="color:var(--muted);text-align:center;padding:20px;font-size:13px">Nenhuma atualização registrada ainda.</p>';
+      return;
+    }
+    el.innerHTML=hist.map(h=>{
+      const u=getUserById(h.usuario_id);
+      let det={};
+      try{ det=typeof h.detalhes==="string"?JSON.parse(h.detalhes):h.detalhes||{}; }catch(e){}
+      const uNome=det.usuario_nome||u.nome||"—";
+      const cor=u.cor||"#8B9AB0";
+      // find raid number
+      const r=DB.raids.find(x=>x.id===h.raid_id);
+      const raidLabel=r?` — ${r.numero_raid}`:"";
+      return `<div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);align-items:flex-start">
+        <div style="width:28px;height:28px;border-radius:50%;background:${cor}22;color:${cor};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0">${uNome[0]||"?"}</div>
+        <div style="flex:1;min-width:0">
+          <p style="color:var(--text);font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.acao}${raidLabel}</p>
+          <p style="color:var(--muted);font-size:11px;margin-top:2px">por <b style="color:${cor}">${uNome}</b></p>
+        </div>
+        <span style="color:var(--muted);font-size:10px;white-space:nowrap;flex-shrink:0">${fmtDatetime(h.created_at)}</span>
+      </div>`;
+    }).join("");
+  } catch(e){
+    el.innerHTML=`<p style="color:var(--muted);text-align:center;padding:20px;font-size:12px">Erro ao carregar timeline: ${e.message}</p>`;
+  }
+}
+
+// ═══════════════════ HISTORICO (audit log) ═══════════════════
+async function logHistorico(acao, detalhes={}){
+  if(!currentUser) return;
+  try {
+    await dbInsert("historico",{
+      raid_id: detalhes.raid_id||null,
+      usuario_id: currentUser.id,
+      acao,
+      detalhes: JSON.stringify({...detalhes, usuario_nome: currentUser.nome})
+    });
+  } catch(e){ console.warn("logHistorico error:",e.message); }
+}
+
+// Wrapped write helpers that auto-log
+async function dbInsertLog(table, body, logLabel){
+  const res = await dbInsert(table, body);
+  const row = Array.isArray(res)?res[0]:res;
+  await logHistorico(`${logLabel||"Novo registro em "+table}`, {tabela:table, id:row?.id, raid_id: body.raid_id||null});
+  return res;
+}
+async function dbUpdateLog(table, id, body, logLabel){
+  const res = await dbUpdate(table, id, body);
+  await logHistorico(`${logLabel||"Atualização em "+table}`, {tabela:table, id, raid_id: body.raid_id||id});
+  return res;
+}
+async function dbDeleteLog(table, id, logLabel){
+  await dbDelete(table, id);
+  await logHistorico(`${logLabel||"Exclusão em "+table}`, {tabela:table, id});
+}
+
+// ═══════════════════ REALTIME SUBSCRIPTION ═══════════════════
+let realtimeChannel = null;
+
+function startRealtime(){
+  if(realtimeChannel) return; // already started
+  // Poll every 15s as fallback (true Supabase Realtime requires the JS client)
+  // For pure REST approach, we poll and re-render only if data changed
+  let lastRaidCount = DB.raids.length;
+  let lastHistoricoCount = DB.raid_etapas.length;
+
+  async function pollUpdates(){
+    if(!currentUser) return;
+    try {
+      const [newRaids, newEtapas, newHist] = await Promise.all([
+        dbSelect("raids","select=id,updated_at&order=updated_at.desc&limit=1"),
+        dbSelect("raid_etapas","select=id,updated_at&order=updated_at.desc&limit=1"),
+        dbSelect("historico","select=id&order=created_at.desc&limit=1"),
+      ]);
+      const latestRaidTs = newRaids[0]?.updated_at||"";
+      const latestEtapaTs = newEtapas[0]?.updated_at||"";
+      const key = latestRaidTs+latestEtapaTs+(newHist[0]?.id||"");
+
+      if(pollUpdates._lastKey && pollUpdates._lastKey !== key){
+        // Data changed — reload silently
+        await loadAll();
+        // Re-render active views
+        const activeView = document.querySelector(".view.active")?.id?.replace("view-","");
+        if(activeView==="dashboard"){ initDashboard(); }
+        if(activeView==="processos"){ renderTable(); }
+        if(activeView==="timeline"&&currentRaid){
+          currentRaid=DB.raids.find(x=>x.id===currentRaid.id);
+          renderTimeline();
+        }
+        buildNotifications();
+        renderDashTimeline();
+        showToast("🔄 Dados atualizados em tempo real","success");
+      }
+      pollUpdates._lastKey = key;
+    } catch(e){ /* silent */ }
+  }
+  pollUpdates._lastKey = null;
+  realtimeChannel = setInterval(pollUpdates, 15000); // every 15 seconds
+  console.log("✅ Realtime polling started (15s interval)");
 }
 
 // ═══════════════════ NOTIFICATIONS ═══════════════════
