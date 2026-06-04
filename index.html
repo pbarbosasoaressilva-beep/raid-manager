@@ -138,11 +138,36 @@ select.input-field{appearance:none}
 .fw-600{font-weight:600}.fs-12{font-size:12px}.fs-13{font-size:13px}
 .mt-4{margin-top:4px}.mt-8{margin-top:8px}
 .text-muted{color:var(--muted)}.text-dim{color:var(--dim)}.text-main{color:var(--text)}
+/* NOTIFICAÇÕES */
+#notif-btn{position:relative;background:transparent;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px 8px;transition:color .15s}
+#notif-btn:hover{color:var(--text)}
+#notif-badge{position:absolute;top:0;right:0;background:var(--red);color:#fff;border-radius:99px;font-size:9px;font-weight:700;padding:1px 5px;min-width:16px;text-align:center;display:none}
+#notif-panel{position:fixed;top:56px;right:16px;width:340px;max-width:calc(100vw - 32px);background:var(--card);border:1px solid var(--border);border-radius:12px;z-index:500;display:none;box-shadow:0 8px 32px #000a;max-height:480px;overflow-y:auto}
+#notif-panel.open{display:block}
+.notif-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)}
+.notif-item{padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
+.notif-item:hover{background:var(--surface)}
+.notif-item:last-child{border-bottom:none}
+.notif-item.unread{border-left:3px solid var(--accent)}
+.notif-item.urgent{border-left:3px solid var(--red)}
+.notif-item.warn{border-left:3px solid var(--yellow)}
+.notif-title{color:var(--text);font-size:13px;font-weight:600;margin-bottom:3px}
+.notif-sub{color:var(--muted);font-size:11px}
+/* topbar right slot */
+#topbar-right{display:flex;align-items:center;gap:8px;margin-left:auto;padding-right:4px}
+
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:13px;z-index:2000;opacity:0;transition:opacity .3s;pointer-events:none}
 .toast.show{opacity:1}
 .toast.success{border-color:var(--green);color:var(--green)}
 .toast.error{border-color:var(--red);color:var(--red)}
-@media(max-width:768px){
+/* Table: no horizontal scroll, fit columns */
+.tbl-wrap{width:100%;overflow:hidden}
+.tbl{table-layout:fixed;width:100%}
+.tbl td,.tbl th{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbl td.wrap-cell{white-space:normal;word-break:break-word}
+/* Cadastros: no unnecessary scrollbars */
+#tab-content{overflow:visible}
+
   .kpi-grid{grid-template-columns:1fr 1fr}.two-col{grid-template-columns:1fr}
   .step-cards{grid-template-columns:repeat(3,1fr)}.hide-mob{display:none}
   .rank-item{flex-wrap:wrap}
@@ -177,7 +202,12 @@ select.input-field{appearance:none}
 <!-- DESKTOP -->
 <div id="app-desktop">
   <nav id="sidebar-desk">
-    <div class="brand">🛡 RAID Manager</div>
+    <div class="brand" style="display:flex;align-items:center;justify-content:space-between">
+      <span>🛡 RAID Manager</span>
+      <button id="notif-btn" onclick="toggleNotif()" title="Notificações">
+        🔔<span id="notif-badge"></span>
+      </button>
+    </div>
     <div class="user-chip">
       <div class="avatar-sm" id="d-av"></div>
       <div><div class="uname" id="d-name"></div><div class="urole" id="d-role"></div></div>
@@ -198,6 +228,9 @@ select.input-field{appearance:none}
   <div id="mob-topbar">
     <button id="mob-menu-btn" onclick="toggleDrawer()">☰</button>
     <span class="brand-mob">🛡 RAID Manager</span>
+    <button id="mob-notif-btn" onclick="toggleNotif()" style="background:transparent;border:none;color:var(--muted);font-size:20px;cursor:pointer;position:relative">
+      🔔<span id="mob-notif-badge" style="position:absolute;top:0;right:0;background:var(--red);color:#fff;border-radius:99px;font-size:9px;font-weight:700;padding:1px 5px;display:none"></span>
+    </button>
     <div id="mob-user-dot"></div>
   </div>
   <div id="mob-drawer">
@@ -229,6 +262,15 @@ select.input-field{appearance:none}
 
 <div class="modal-overlay" id="modal"><div class="modal" id="modal-body"></div></div>
 <div class="toast" id="toast"></div>
+
+<!-- NOTIFICATION PANEL -->
+<div id="notif-panel">
+  <div class="notif-header">
+    <span style="color:var(--text);font-weight:700;font-size:14px">🔔 Notificações</span>
+    <button onclick="markAllRead()" style="background:transparent;border:none;color:var(--accent);font-size:12px;cursor:pointer">Marcar todas como lidas</button>
+  </div>
+  <div id="notif-list"><p style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Nenhuma notificação</p></div>
+</div>
 
 <script>
 // ═══════════════════ SUPABASE — DIRECT FETCH (bypass DataCloneError) ═══════
@@ -290,7 +332,29 @@ const sb = {
 
 // ═══════════════════ STATE ═══════════════════
 let currentUser=null, currentRaid=null, procFilter="Todos", currentTab="fazendas", appMode="desktop", loginMode="desktop";
-let DB = { usuarios:[], fazendas:[], cargos:[], colaboradores:[], etapas_config:[], raids:[], raid_etapas:[] };
+let currentEtapaTab="etapas";
+let DB = { usuarios:[], fazendas:[], cargos:[], setores:[], colaboradores:[], etapas_config:[], raids:[], raid_etapas:[], nova_raid_campos:[] };
+// nova_raid_campos: admin-configurable fields for the Nova RAID form
+// Default fields (persisted in localStorage since no DB table yet)
+const DEFAULT_NOVA_RAID_CAMPOS = [
+  {id:"num",    label:"Número da RAID",        type:"text",    req:true,  ordem:1},
+  {id:"ocorr",  label:"Data da Ocorrência",    type:"date",    req:true,  ordem:2},
+  {id:"faz",    label:"Fazenda",               type:"select",  req:true,  ordem:3},
+  {id:"setor",  label:"Setor",                 type:"select",  req:true,  ordem:4},
+  {id:"colab",  label:"Colaborador Envolvido", type:"select",  req:true,  ordem:5},
+  {id:"qssma",  label:"Coordenador Emitente",  type:"select",  req:true,  ordem:6},
+  {id:"coord",  label:"Coordenador Responsável",type:"select", req:true,  ordem:7},
+  {id:"manut",  label:"Resp. Manutenção",      type:"select",  req:true,  ordem:8},
+  {id:"rh",     label:"Responsável RH",        type:"select",  req:true,  ordem:9},
+  {id:"desc",   label:"Descrição da Ocorrência",type:"textarea",req:true, ordem:10},
+  {id:"file",   label:"Documento Inicial (PDF)",type:"file",   req:false, ordem:11},
+];
+function loadNovaRaidCampos(){
+  try{ const s=localStorage.getItem("nova_raid_campos"); DB.nova_raid_campos=s?JSON.parse(s):[...DEFAULT_NOVA_RAID_CAMPOS]; }
+  catch(e){ DB.nova_raid_campos=[...DEFAULT_NOVA_RAID_CAMPOS]; }
+}
+function saveNovaRaidCampos(){ localStorage.setItem("nova_raid_campos",JSON.stringify(DB.nova_raid_campos)); }
+
 
 // ═══════════════════ HELPERS ═══════════════════
 const slaColor=s=>s==="ok"?"#22C55E":s==="proximo"?"#EAB308":s==="atrasado"?"#EF4444":"#38BDF8";
@@ -326,10 +390,11 @@ function safeArr(data){ return Array.isArray(data)?data:[]; }
 
 async function loadAll(){
   console.log("📦 Fetching all tables via REST...");
-  const [usuarios, fazendas, cargos, colaboradores, etapas_config, raids, raid_etapas] = await Promise.all([
+  const [usuarios, fazendas, cargos, setores, colaboradores, etapas_config, raids, raid_etapas] = await Promise.all([
     dbSelect("usuarios",      "select=id,nome,email,senha_hash,perfil,cor,ativo&order=nome"),
     dbSelect("fazendas",      "select=id,nome,codigo,municipio,estado&order=nome"),
     dbSelect("cargos",        "select=id,nome,area,nivel&order=nome"),
+    dbSelect("setores",       "select=id,nome,descricao&order=nome"),
     dbSelect("colaboradores", "select=id,nome,matricula,cargo_id,fazenda_id,email,gestor_id&order=nome"),
     dbSelect("etapas_config", "select=id,ordem,nome,responsavel,sla_dias,cor,requisitos,campos&order=ordem"),
     dbSelect("raids",         "select=id,numero_raid,fazenda_id,setor,colaborador_nome,coordenador_id,data_ocorrencia,data_abertura,status,etapa_atual,sla_status,dias_total,created_by,created_at,updated_at&order=created_at.desc"),
@@ -338,11 +403,13 @@ async function loadAll(){
   DB.usuarios      = safeArr(usuarios);
   DB.fazendas      = safeArr(fazendas);
   DB.cargos        = safeArr(cargos);
+  DB.setores       = safeArr(setores);
   DB.colaboradores = safeArr(colaboradores);
   DB.etapas_config = safeArr(etapas_config);
   DB.raids         = safeArr(raids);
   DB.raid_etapas   = safeArr(raid_etapas);
-  console.log("✅ loadAll done — raids:", DB.raids.length, "usuarios:", DB.usuarios.length);
+  loadNovaRaidCampos();
+  console.log("✅ loadAll done — raids:", DB.raids.length);
 }
 
 // ═══════════════════ LOGIN ═══════════════════
@@ -483,16 +550,27 @@ const VIEWS=`
     </div>
     <button class="btn-ghost btn-sm" onclick="limparFiltrosDropdown()" style="white-space:nowrap">✕ Limpar</button>
   </div>
-  <div class="card" style="padding:0;overflow-x:hidden;overflow-y:auto">
-    <div style="overflow-x:auto">
-    <table class="tbl" style="min-width:700px">
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <colgroup>
+        <col style="width:10%">
+        <col class="hide-mob" style="width:14%">
+        <col class="hide-mob" style="width:10%">
+        <col class="hide-mob" style="width:12%">
+        <col class="hide-mob" style="width:11%">
+        <col class="hide-mob" style="width:9%">
+        <col style="width:14%">
+        <col style="width:12%">
+        <col style="width:8%">
+      </colgroup>
       <thead><tr>
-        <th style="white-space:nowrap">Nº RAID</th>
+        <th>Nº RAID</th>
         <th class="hide-mob">Fazenda</th>
         <th class="hide-mob">Setor</th>
         <th class="hide-mob">Colaborador</th>
         <th class="hide-mob">Coordenador</th>
-        <th class="hide-mob" style="white-space:nowrap">Abertura</th>
+        <th class="hide-mob">Abertura</th>
         <th>Progresso</th><th>Etapa</th><th>Status</th>
       </tr></thead>
       <tbody id="proc-tbody"></tbody>
@@ -520,8 +598,13 @@ const VIEWS=`
 </section>
 
 <section id="view-etapas" class="view">
-  <div><p class="page-title">⚙️ Configuração de Etapas</p><p class="page-sub">Alterações salvas automaticamente no banco</p></div>
+  <div><p class="page-title">⚙️ Configuração de Etapas</p><p class="page-sub">Admin — alterações salvas automaticamente</p></div>
+  <div class="tabs">
+    <button class="tab-btn active" id="etab-etapas" onclick="showEtapaTab('etapas',this)">Etapas do Processo</button>
+    <button class="tab-btn" id="etab-campos" onclick="showEtapaTab('campos',this)">Campos da Nova RAID</button>
+  </div>
   <div id="etapas-list"></div>
+  <div id="campos-raid-list" style="display:none"></div>
 </section>
 
 <section id="view-cadastros" class="view">
@@ -529,10 +612,11 @@ const VIEWS=`
   <div class="tabs">
     <button class="tab-btn active" onclick="showTab('fazendas',this)">Fazendas</button>
     <button class="tab-btn" onclick="showTab('cargos',this)">Cargos</button>
+    <button class="tab-btn" onclick="showTab('setores',this)">Setores</button>
     <button class="tab-btn" onclick="showTab('colaboradores',this)">Colaboradores</button>
     <button class="tab-btn" onclick="showTab('usuarios',this)">Usuários</button>
   </div>
-  <div class="card" id="tab-content"></div>
+  <div id="tab-content"></div>
 </section>`;
 
 function buildViews(){
@@ -614,6 +698,8 @@ async function initAll(){
     renderTimelineSelector();
     console.log("✅ renderTimelineSelector done");
 
+    buildNotifications();
+
   } catch(e){
     console.error("❌ initAll error:",e);
     if(errEl){
@@ -667,8 +753,12 @@ function initDashboard(){
   document.getElementById("dash-ranking").innerHTML=ranking.slice(0,4).map((c,i)=>`
     <div style="display:flex;align-items:center;gap:14px;padding:10px 0;border-top:${i>0?"1px solid var(--border)":"none"}">
       <span style="font-size:22px;width:28px;text-align:center">${medal(i)}</span>
-      <div style="flex:1"><p class="text-main fw-600 fs-13">${c.nome}</p>
-        <p class="text-muted" style="font-size:11px;margin-top:2px">${c.processos} processos · ${c.taxa}% conclusão</p></div>
+      <div style="flex:1">
+        <p class="text-main fw-600 fs-13">
+          <a href="#" onclick="filtrarPorCoord('${c.id}');return false" style="color:var(--accent);text-decoration:underline;text-underline-offset:3px">${c.nome}</a>
+        </p>
+        <p class="text-muted" style="font-size:11px;margin-top:2px">${c.processos} processos · ${c.taxa}% conclusão</p>
+      </div>
       <span class="text-main fw-600">${c.tempMedio} dias</span>
     </div>`).join("");
 }
@@ -794,14 +884,31 @@ function renderTimeline(){
 
   document.getElementById("tl-step-cards").innerHTML=DB.etapas_config.map((ec,i)=>{
     const ep=etapas[i]||{}, done=!!ep.fim, cur=!done&&!!ep.inicio, locked=!done&&!cur;
+    // Etapa 4 (index 3) EXCEPTION: Manutenção can always access it to attach budget,
+    // but SLA only starts counting when Etapa 3 is done.
+    const isEtapa4Exception = i===3;
+    const etapa3Done = !!(etapas[2]?.fim);
     const canDo=isPrivileged()||(currentUser&&(currentUser.id===ep.responsavel_id||currentUser.perfil===ec.responsavel));
-    let cls="step-card "+(done?"done":cur?"current":"pending");
-    if(!locked) cls+=" clickable-step";
-    return `<div class="${cls}" onclick="${locked?"":done?`openStepView(${i})`:`openStepAdvance(${i})`}">
-      <div style="font-size:20px;margin-bottom:6px">${done?"✅":cur?"⏳":locked?"🔒":"⬜"}</div>
-      <p style="font-size:11px;font-weight:600;color:${done?"var(--green)":cur?"var(--yellow)":"var(--muted)"}">Etapa ${i+1}</p>
-      <p style="font-size:10px;font-weight:600;color:${done?"var(--green)":cur?"var(--yellow)":"var(--muted)"}">${ec.nome}</p>
-      <p style="font-size:10px;color:var(--muted);margin-top:4px">${done?"Ver detalhes":cur?canDo?"Executar":"Aguardando":"Pendente"}</p>
+    // For etapa 4: accessible if manutenção (or above), even if locked
+    const etapa4CanAccess = isEtapa4Exception && (isPrivileged()||currentUser?.perfil==="Manutenção");
+    const effectiveLocked = locked && !etapa4CanAccess;
+    let cls="step-card "+(done?"done":cur?"current":isEtapa4Exception&&!done?"current":"pending");
+    if(!effectiveLocked) cls+=" clickable-step";
+    // Label for etapa 4
+    let subLabel;
+    if(done) subLabel="Ver detalhes";
+    else if(isEtapa4Exception){
+      if(!etapa3Done) subLabel=etapa4CanAccess?"📎 Anexar orçamento (antecipado)":"⏳ Aguarda Etapa 3";
+      else subLabel=canDo?"Executar":"Aguardando";
+    } else {
+      subLabel=cur?(canDo?"Executar":"Aguardando"):"Pendente";
+    }
+    return `<div class="${cls}" onclick="${effectiveLocked?"":done?`openStepView(${i})`:`openStepAdvance(${i})`}">
+      <div style="font-size:20px;margin-bottom:6px">${done?"✅":isEtapa4Exception&&!done&&etapa4CanAccess?"📎":cur?"⏳":effectiveLocked?"🔒":"⬜"}</div>
+      <p style="font-size:11px;font-weight:600;color:${done?"var(--green)":isEtapa4Exception&&!done&&etapa4CanAccess?"#38BDF8":cur?"var(--yellow)":"var(--muted)"}">Etapa ${i+1}</p>
+      <p style="font-size:10px;font-weight:600;color:${done?"var(--green)":isEtapa4Exception&&!done&&etapa4CanAccess?"#38BDF8":cur?"var(--yellow)":"var(--muted)"}">${ec.nome}</p>
+      <p style="font-size:10px;color:var(--muted);margin-top:4px">${subLabel}</p>
+      ${isEtapa4Exception&&!done&&!etapa3Done?`<p style="font-size:9px;color:#38BDF8;margin-top:3px">SLA inicia após Etapa 3</p>`:""}
     </div>`;
   }).join("");
 }
@@ -840,13 +947,17 @@ function openStepView(idx){
 function openStepAdvance(idx){
   const r=currentRaid, ec=DB.etapas_config[idx], etapas=etapasDoRaid(r), ep=etapas[idx]||{};
   const resp=getUserById(ep.responsavel_id);
-  const canDo=isPrivileged()||(currentUser&&(currentUser.id===ep.responsavel_id||currentUser.perfil===ec.responsavel));
+  const isEtapa4=idx===3;
+  const etapa3Done=!!(etapas[2]?.fim);
+  // canDo: normal logic PLUS Manutenção can always access Etapa 4
+  const canDo=isPrivileged()||
+    (currentUser&&(currentUser.id===ep.responsavel_id||currentUser.perfil===ec.responsavel))||
+    (isEtapa4&&currentUser?.perfil==="Manutenção");
   const allFields=parseJson(ec.campos,[]);
-  const saved=ep.campos||{};
-  const faz=getFazenda(r.fazenda_id);
-  // For etapa 1, show raid data read-only and skip repeated fields
   const skipIds=idx===0?["num_raid","data_ocorr","hora_ocorr","local","coord_emit"]:[];
   const fields=allFields.filter(f=>!skipIds.includes(f.id));
+  const saved=ep.campos||{};
+  const faz=getFazenda(r.fazenda_id);
   const etapa1Block=idx===0?`
     <div class="card-sm" style="margin-bottom:14px;background:#1D346122;border-color:var(--accent)44">
       <p class="text-muted" style="font-size:10px;font-weight:600;text-transform:uppercase;margin-bottom:8px">📋 Dados da RAID (cadastrados na abertura)</p>
@@ -855,6 +966,13 @@ function openStepAdvance(idx){
       <div class="step-info-row"><span class="text-muted fs-12">Fazenda</span><span class="text-main fw-600">${faz.nome}</span></div>
       <div class="step-info-row" style="border:none"><span class="text-muted fs-12">Colaborador</span><span class="text-main fw-600">${r.colaborador_nome||"—"}</span></div>
     </div>`:"";
+  // Etapa 4 antecipado notice
+  const etapa4Notice=isEtapa4&&!etapa3Done?`
+    <div style="background:#38BDF820;border:1px solid #38BDF855;border-radius:8px;padding:12px 14px;margin-bottom:14px">
+      <p style="color:#38BDF8;font-weight:700;font-size:13px;margin-bottom:4px">📎 Anexo Antecipado de Orçamento</p>
+      <p style="color:var(--muted);font-size:12px">Você pode anexar o orçamento agora, antes das etapas anteriores serem concluídas. O <b style="color:var(--text)">tempo de SLA da Etapa 4 começará a contar somente quando a Etapa 3 for concluída.</b></p>
+    </div>`:"";
+  const btnLabel=isEtapa4&&!etapa3Done?"💾 Salvar Orçamento (antecipado)":"✅ Concluir Etapa e Avançar";
   openModal(`
     <button class="modal-close" onclick="closeModal()">✕</button>
     <h3>⏳ Etapa ${idx+1}: ${ec.nome}</h3>
@@ -863,7 +981,7 @@ function openStepAdvance(idx){
       <div class="step-info-row"><span class="text-muted fs-12">Início da Etapa</span><span class="text-main fw-600">${fmtDatetime(ep.inicio)}</span></div>
       <div class="step-info-row" style="border:none"><span class="text-muted fs-12">Em aberto há</span><span style="color:var(--yellow);font-weight:700">${duracao(ep.inicio,null)}</span></div>
     </div>
-    ${etapa1Block}
+    ${etapa1Block}${etapa4Notice}
     ${canDo?`
       <div style="display:flex;flex-direction:column;gap:0">
         ${fields.map(f=>{
@@ -887,7 +1005,7 @@ function openStepAdvance(idx){
         <input type="file" class="input-field" id="step-file" accept=".pdf"/>
         ${ep.anexo_nome?`<p class="text-muted" style="font-size:11px;margin-top:3px">Atual: ${ep.anexo_nome}</p>`:""}
       </div>
-      <button class="btn-primary" style="width:100%;margin-top:12px" onclick="concludeStep(${idx})">✅ Concluir Etapa e Avançar</button>
+      <button class="btn-primary" style="width:100%;margin-top:12px" onclick="concludeStep(${idx})">${btnLabel}</button>
     `:`<div style="text-align:center;padding:20px;background:var(--surface);border-radius:8px">
         <p style="font-size:28px;margin-bottom:8px">🔒</p>
         <p class="text-muted fs-13">Sem permissão para executar esta etapa.</p>
@@ -904,6 +1022,8 @@ function updDot(fid){
 
 async function concludeStep(idx){
   const r=currentRaid, ec=DB.etapas_config[idx], etapas=etapasDoRaid(r), ep=etapas[idx]||{};
+  const isEtapa4=idx===3;
+  const etapa3Done=!!(etapas[2]?.fim);
   const skipIds=idx===0?["num_raid","data_ocorr","hora_ocorr","local","coord_emit"]:[];
   const allFields=parseJson(ec.campos,[]);
   const fields=allFields.filter(f=>!skipIds.includes(f.id));
@@ -916,17 +1036,10 @@ async function concludeStep(idx){
   });
   if(!file&&!ep.anexo_nome) missing.push("Documento/Evidência (PDF)");
   if(missing.length){alert("Preencha os campos obrigatórios:\n\n• "+missing.join("\n• "));return;}
-  // Build campos - only plain serializable values, never File objects
   const campos={...(ep.campos||{})};
   fields.forEach(f=>{
-    if(f.type==="file"){
-      // Store only the filename string, not the File object
-      const el=document.getElementById("rf-"+f.id);
-      if(el?.files?.[0]) campos[f.id]=el.files[0].name;
-    } else {
-      const el=document.getElementById("rf-"+f.id);
-      if(el) campos[f.id]=String(el.value||"");
-    }
+    if(f.type==="file"){const el=document.getElementById("rf-"+f.id);if(el?.files?.[0])campos[f.id]=el.files[0].name;}
+    else{const el=document.getElementById("rf-"+f.id);if(el)campos[f.id]=String(el.value||"");}
   });
   const now=new Date().toISOString();
   let anexo_nome=ep.anexo_nome, anexo_url=ep.anexo_url||null;
@@ -936,11 +1049,27 @@ async function concludeStep(idx){
     const _url=await uploadFile("raid-anexos",path,file);
     if(_url) anexo_url=_url;
   }
+
+  // ETAPA 4 EXCEPTION: if Etapa 3 not yet done, save orçamento without marking as fim
+  // SLA will only start counting when Etapa 3 concludes (inicio set from etapa3.fim)
+  if(isEtapa4&&!etapa3Done){
+    await dbUpdate("raid_etapas",ep.id,{campos,obs:campos.obs||"",anexo_nome,anexo_url,updated_at:now});
+    showToast("Orçamento salvo antecipadamente! ✅ SLA inicia quando Etapa 3 for concluída.");
+    closeModal(); await loadAll(); currentRaid=DB.raids.find(x=>x.id===r.id); renderTimeline();
+    return;
+  }
+
+  // Normal flow: mark as done and advance
   await dbUpdate("raid_etapas",ep.id,{fim:now,campos,obs:campos.obs||"",anexo_nome,anexo_url,updated_at:now});
   const next=idx+1;
   if(next<5){
     const nextEp=etapas[next];
-    if(nextEp?.id) await dbUpdate("raid_etapas",nextEp.id,{inicio:now,updated_at:now});
+    // For Etapa 3 (idx=2): when it concludes, set Etapa 4's inicio to now (start SLA)
+    if(idx===2&&nextEp?.id){
+      await dbUpdate("raid_etapas",nextEp.id,{inicio:now,updated_at:now});
+    } else if(nextEp?.id&&!nextEp.inicio){
+      await dbUpdate("raid_etapas",nextEp.id,{inicio:now,updated_at:now});
+    }
     await dbUpdate("raids",r.id,{etapa_atual:next+1,status:"Em Andamento",updated_at:now});
   } else {
     const dias=Math.round((new Date()-new Date(etapas[0]?.inicio||r.data_abertura))/86400000);
@@ -1050,8 +1179,20 @@ function calcRanking(){
     const tratados=DB.raids.filter(r=>DB.raid_etapas.some(e=>e.raid_id===r.id&&e.responsavel_id===u.id&&e.fim));
     const avg=tempos.length?(tempos.reduce((a,b)=>a+b,0)/tempos.length).toFixed(1):"-";
     const taxa=tratados.length?Math.round(tratados.filter(r=>r.status==="Concluído").length/tratados.length*100):0;
-    return {nome:u.nome,processos:tratados.length,tempMedio:avg,taxa,cor:u.cor};
+    return {id:u.id, nome:u.nome, processos:tratados.length, tempMedio:avg, taxa, cor:u.cor};
   }).sort((a,b)=>(parseFloat(a.tempMedio)||99)-(parseFloat(b.tempMedio)||99));
+}
+
+function filtrarPorCoord(coordId){
+  procFilter="Todos";
+  document.querySelectorAll(".filter-btn").forEach(b=>b.classList.remove("active"));
+  document.getElementById("fb-todos")?.classList.add("active");
+  // set coord dropdown
+  const fl=document.getElementById("fl-coord");
+  if(fl) fl.value=coordId;
+  renderTable();
+  if(appMode==="desktop") deskNav("processos",document.querySelectorAll("#sidebar-desk .nav-btn")[1]);
+  else mobNav("processos");
 }
 function renderRanking(){
   const rk=calcRanking(), colors=["#22C55E","#22C55E88","#EAB308","#EF4444"];
@@ -1208,7 +1349,60 @@ async function saveCampo(ecId,i){
 }
 
 // ═══════════════════ CADASTROS ═══════════════════
-function showTab(id,btn){ currentTab=id; document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active")); if(btn)btn.classList.add("active"); renderCadastros(); }
+function showEtapaTab(tab, btn){
+  currentEtapaTab=tab;
+  document.querySelectorAll("#etab-etapas,#etab-campos").forEach(b=>b.classList.remove("active"));
+  if(btn) btn.classList.add("active");
+  document.getElementById("etapas-list").style.display=tab==="etapas"?"block":"none";
+  document.getElementById("campos-raid-list").style.display=tab==="campos"?"block":"none";
+  if(tab==="campos") renderCamposRaid();
+  else renderEtapas();
+}
+
+function renderCamposRaid(){
+  const campos=DB.nova_raid_campos.sort((a,b)=>a.ordem-b.ordem);
+  document.getElementById("campos-raid-list").innerHTML=`
+    <div class="card" style="margin-top:8px">
+      <p style="color:var(--text);font-weight:600;margin-bottom:4px">Campos do Formulário "Nova RAID"</p>
+      <p style="color:var(--muted);font-size:12px;margin-bottom:16px">Defina quais campos aparecem ao criar um novo processo. Os campos de seleção (Fazenda, Setor, etc.) usam os cadastros como fonte.</p>
+      ${campos.map((f,i)=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="display:flex;gap:4px">
+            <button class="btn-sm" style="background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:4px 8px" onclick="moveCampoRaid(${i},-1)" ${i===0?"disabled":""}>↑</button>
+            <button class="btn-sm" style="background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:4px 8px" onclick="moveCampoRaid(${i},1)" ${i===campos.length-1?"disabled":""}>↓</button>
+          </div>
+          <div style="flex:1">
+            <input class="input-field" value="${f.label}" style="font-size:12px;padding:6px 10px" onblur="renameCampoRaid(${i},this.value)"/>
+          </div>
+          <span style="color:var(--muted);font-size:11px;white-space:nowrap">${f.type}</span>
+          <label style="display:flex;align-items:center;gap:4px;color:var(--muted);font-size:12px;white-space:nowrap;cursor:pointer">
+            <input type="checkbox" ${f.req?"checked":""} onchange="toggleReqRaid(${i},this.checked)"/> Obrig.
+          </label>
+        </div>`).join("")}
+    </div>`;
+}
+function moveCampoRaid(i,dir){
+  const c=DB.nova_raid_campos.sort((a,b)=>a.ordem-b.ordem);
+  const j=i+dir; if(j<0||j>=c.length)return;
+  [c[i].ordem,c[j].ordem]=[c[j].ordem,c[i].ordem];
+  saveNovaRaidCampos(); renderCamposRaid();
+}
+function renameCampoRaid(i,val){
+  const c=DB.nova_raid_campos.sort((a,b)=>a.ordem-b.ordem);
+  if(val.trim()) c[i].label=val.trim();
+  saveNovaRaidCampos();
+}
+function toggleReqRaid(i,val){
+  const c=DB.nova_raid_campos.sort((a,b)=>a.ordem-b.ordem);
+  c[i].req=val; saveNovaRaidCampos();
+}
+
+function showTab(id,btn){
+  currentTab=id;
+  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+  if(btn) btn.classList.add("active");
+  renderCadastros();
+}
 
 function renderCadastros(){
   const ct=document.getElementById("tab-content"); if(!ct)return;
@@ -1229,7 +1423,23 @@ function renderCadastros(){
         <button class="btn-sm" style="background:var(--surface);border:1px solid var(--border);color:var(--muted)" onclick="modalCargo('${c.id}')">✏️</button>
         <button class="btn-sm btn-danger" onclick="deleteCargo('${c.id}')">🗑</button>
       </div>`;}).join("")}`;
-  } else if(currentTab==="colaboradores"){
+  } else if(currentTab==="setores"){
+    const ct=document.getElementById("tab-content");
+    ct.innerHTML=`<div class="card" style="margin-top:8px">
+      <div class="top-row" style="margin-bottom:14px">
+        <p class="text-main fw-600">Setores Cadastrados</p>
+        <button class="btn-primary btn-sm" onclick="modalSetor()">+ Adicionar</button>
+      </div>
+      <p style="color:var(--muted);font-size:12px;margin-bottom:12px">Setores são usados como fonte nas listas suspensas dos processos.</p>
+      ${DB.setores.length===0?'<p style="color:var(--muted);text-align:center;padding:20px">Nenhum setor cadastrado.</p>':
+        DB.setores.map(s=>`<div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-top:1px solid var(--border)">
+          <div style="width:36px;height:36px;border-radius:8px;background:var(--accentLo);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px">🏭</div>
+          <div style="flex:1"><p class="text-main fw-600 fs-13">${s.nome}</p>${s.descricao?`<p class="text-muted" style="font-size:11px;margin-top:2px">${s.descricao}</p>`:""}</div>
+          <button class="btn-sm" style="background:var(--surface);border:1px solid var(--border);color:var(--muted)" onclick="modalSetor('${s.id}')">✏️</button>
+          <button class="btn-sm btn-danger" onclick="deleteSetor('${s.id}')">🗑</button>
+        </div>`).join("")}
+    </div>`;
+    return;
     ct.innerHTML=`<div class="top-row" style="margin-bottom:16px">
         <p class="text-main fw-600">Colaboradores</p>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -1286,6 +1496,35 @@ async function deleteFazenda(id){
   if(!confirm("Excluir esta fazenda?"))return;
   await dbDelete("fazendas",id);
   showToast("Excluída","error"); await loadAll(); renderCadastros();
+}
+
+// SETOR CRUD
+async function modalSetor(id){
+  const s=id?DB.setores.find(x=>x.id===id):{};
+  openModal(`<button class="modal-close" onclick="closeModal()">✕</button><h3>${id?"✏️ Editar":"+ Novo"} Setor</h3>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:14px">
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Nome do Setor *</label>
+        <input class="input-field" id="st-nome" value="${s?.nome||""}" placeholder="Ex: Plantio, Colheita, Manutenção…"/></div>
+      <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Descrição (opcional)</label>
+        <input class="input-field" id="st-desc" value="${s?.descricao||""}" placeholder="Breve descrição do setor"/></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn-primary" style="flex:1" onclick="saveSetor('${id||""}')">💾 Salvar</button>
+        ${id?`<button class="btn-sm btn-danger" style="padding:9px 16px" onclick="deleteSetor('${id}')">🗑</button>`:""}
+      </div>
+    </div>`);
+}
+async function saveSetor(id){
+  const nome=document.getElementById("st-nome").value.trim();
+  const descricao=document.getElementById("st-desc").value.trim();
+  if(!nome){alert("Informe o nome do setor.");return;}
+  if(id) await dbUpdate("setores",id,{nome,descricao:descricao||null});
+  else await dbInsert("setores",{nome,descricao:descricao||null});
+  showToast("Setor salvo ✅"); closeModal(); await loadAll(); renderCadastros();
+}
+async function deleteSetor(id){
+  if(!confirm("Excluir este setor?"))return;
+  await dbDelete("setores",id);
+  showToast("Excluído","error"); closeModal(); await loadAll(); renderCadastros();
 }
 
 // CARGO
@@ -1400,8 +1639,13 @@ function openNovaRaid(){
         <select class="input-field" id="nr-faz"><option value="">— Selecione —</option>
           ${DB.fazendas.map(f=>`<option value="${f.id}">${f.nome} (${f.codigo}) — ${f.municipio}/${f.estado}</option>`).join("")}</select></div>
       <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Setor *</label>
-        <input class="input-field" id="nr-setor" placeholder="Ex: Plantio, Colheita, Manutenção, Logística…" list="setores-list"/>
-        <datalist id="setores-list">${[...new Set(DB.raids.map(r=>r.setor).filter(Boolean))].map(s=>"<option value=\""+s+"\">").join("")}</datalist></div>
+        <select class="input-field" id="nr-setor">
+          <option value="">— Selecione o setor —</option>
+          ${DB.setores.map(s=>"<option value=\""+s.nome+"\">"+s.nome+"</option>").join("")}
+          <option value="__outro">Outro (digitar)</option>
+        </select>
+        <input class="input-field" id="nr-setor-outro" placeholder="Digite o setor…" style="margin-top:6px;display:none" oninput="this.style.display=this.value?'':'none'"/>
+      </div>
       <div class="field"><label style="color:var(--muted);font-size:11px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase">Colaborador Envolvido *</label>
         <select class="input-field" id="nr-colab"><option value="">— Selecione —</option>
           ${DB.colaboradores.map(c=>{const cargo=DB.cargos.find(x=>x.id===c.cargo_id)||{nome:"—"};return `<option value="${c.nome}">${c.nome} — ${cargo.nome}</option>`;}).join("")}</select></div>
@@ -1429,7 +1673,8 @@ async function saveNovaRaid(){
   const num=document.getElementById("nr-num").value.trim();
   const ocorr=document.getElementById("nr-ocorr").value;
   const fazId=document.getElementById("nr-faz").value;
-  const setor=document.getElementById("nr-setor").value.trim();
+  const setorSel=document.getElementById("nr-setor").value;
+  const setor=setorSel==="__outro"?(document.getElementById("nr-setor-outro")?.value.trim()||""):setorSel;
   const colab=document.getElementById("nr-colab").value;
   const qssmaId=document.getElementById("nr-qssma").value;
   const coordId=document.getElementById("nr-coord").value;
@@ -1537,6 +1782,102 @@ function openModal(html){document.getElementById("modal-body").innerHTML=html;do
 function closeModal(){document.getElementById("modal").classList.remove("open");}
 document.getElementById("modal").addEventListener("click",function(e){if(e.target===this)closeModal();});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();if(e.key==="Enter"&&document.getElementById("login-screen").style.display!=="none")doLogin();});
+
+// ═══════════════════ NOTIFICATIONS ═══════════════════
+let notifList = [];
+
+function buildNotifications(){
+  if(!currentUser) return;
+  const uid=currentUser.id, perfil=currentUser.perfil;
+  const notifs=[];
+  const today=new Date();
+
+  DB.raids.forEach(r=>{
+    const etapas=DB.raid_etapas.filter(e=>e.raid_id===r.id).sort((a,b)=>a.etapa_ordem-b.etapa_ordem);
+    const curEp=etapas.find(e=>e.etapa_ordem===r.etapa_atual);
+    if(!curEp||r.status==="Concluído") return;
+
+    const ec=DB.etapas_config.find(e=>e.ordem===r.etapa_atual)||{nome:"—",sla_dias:3};
+    const isMine=curEp.responsavel_id===uid||
+      (perfil==="Coordenador"&&ec.responsavel==="Coordenador")||
+      (perfil==="QSSMA"&&ec.responsavel==="QSSMA")||
+      (perfil==="Manutenção"&&ec.responsavel==="Manutenção")||
+      (perfil==="RH"&&ec.responsavel==="RH")||
+      isAdmin();
+
+    if(!isMine) return;
+
+    // Pending (step not started yet for me)
+    if(!curEp.inicio){
+      notifs.push({type:"pending",cls:"unread",icon:"⏳",title:`${r.numero_raid} — Aguarda início`,sub:`Etapa ${r.etapa_atual}: ${ec.nome}`,raidId:r.id});
+      return;
+    }
+
+    // SLA warnings
+    if(curEp.inicio){
+      const diasAberto=Math.floor((today-new Date(curEp.inicio))/86400000);
+      const slaDias=ec.sla_dias||3;
+      if(diasAberto>=slaDias){
+        notifs.push({type:"late",cls:"urgent",icon:"🔴",title:`${r.numero_raid} — ATRASADO`,sub:`${ec.nome} em aberto há ${diasAberto} dias (SLA: ${slaDias}d)`,raidId:r.id});
+      } else if(diasAberto>=slaDias-1){
+        notifs.push({type:"warn",cls:"warn",icon:"🟡",title:`${r.numero_raid} — Vencendo hoje/amanhã`,sub:`${ec.nome} — ${slaDias-diasAberto} dia(s) restante(s)`,raidId:r.id});
+      } else {
+        notifs.push({type:"ok",cls:"unread",icon:"📋",title:`${r.numero_raid} — Pendente`,sub:`${ec.nome} em andamento (${diasAberto}/${slaDias}d)`,raidId:r.id});
+      }
+    }
+  });
+
+  // Sort: urgent first
+  notifs.sort((a,b)=>{"urgent warn unread ok".split(" ").indexOf(a.type)-"urgent warn unread ok".split(" ").indexOf(b.type)});
+  notifList=notifs;
+  updateNotifBadge();
+  renderNotifList();
+}
+
+function updateNotifBadge(){
+  const count=notifList.filter(n=>n.cls==="urgent"||n.cls==="warn"||n.cls==="unread").length;
+  ["notif-badge","mob-notif-badge"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.textContent=count>9?"9+":count;
+    el.style.display=count>0?"block":"none";
+  });
+}
+
+function renderNotifList(){
+  const el=document.getElementById("notif-list");
+  if(!el) return;
+  if(notifList.length===0){
+    el.innerHTML='<p style="padding:20px;text-align:center;color:var(--muted);font-size:13px">✅ Tudo em dia! Sem pendências.</p>';
+    return;
+  }
+  el.innerHTML=notifList.map(n=>`
+    <div class="notif-item ${n.cls}" onclick="openRaidTimeline('${n.raidId}');toggleNotif()">
+      <div class="notif-title">${n.icon} ${n.title}</div>
+      <div class="notif-sub">${n.sub}</div>
+    </div>`).join("");
+}
+
+function toggleNotif(){
+  const p=document.getElementById("notif-panel");
+  p.classList.toggle("open");
+  if(p.classList.contains("open")) renderNotifList();
+}
+function markAllRead(){
+  notifList=[];
+  updateNotifBadge();
+  renderNotifList();
+}
+// Close notif panel on outside click
+document.addEventListener("click",function(e){
+  const p=document.getElementById("notif-panel");
+  if(!p) return;
+  if(!p.contains(e.target)&&e.target.id!=="notif-btn"&&e.target.id!=="mob-notif-btn"){
+    p.classList.remove("open");
+  }
+});
+// Auto-refresh notifications every 5 minutes
+setInterval(()=>{ if(currentUser) buildNotifications(); }, 5*60*1000);
 
 // ═══════════════════ BOOT ═══════════════════
 (async()=>{
